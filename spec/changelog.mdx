@@ -1,0 +1,36 @@
+---
+title: "變更紀錄"
+description: "API 規格版本變更歷史"
+icon: "clock-rotate-left"
+---
+
+## 版本歷史
+
+| 版本 | 日期 | 變更說明 | 作者 |
+|------|------|------|------|
+| 1.0 | 2024-01-21 | 初版發布 | - |
+| 2.0 | 2025-02-11 | 見下方詳細變更列表 | KryptoGO |
+
+## v2.0 變更明細
+
+| # | Section | 變更內容 | 來源 |
+|---|---------|---------|------|
+| 1 | 認證與安全 | 新增 `X-Nonce` Header 及防重放攻擊機制說明 | Lido 建議 |
+| 2 | 認證與安全 | 簽章計算加入 `{nonce}` 欄位，確保 Nonce 與簽章綁定 | Lido 建議 |
+| 3 | 認證與安全 | 新增金鑰輪換機制說明，描述 VASP 間如何共享 rotated key | Kordan 提議 |
+| 4 | GET /vasp/info | `public_key`（單一物件）改為 `public_keys`（陣列），新增 `kid`, `status`, `created_at`, `expires_at` 欄位 | Lido 建議 |
+| 5 | POST /address/verify | 新增 `memo` 欄位，支援 XRP 等需要 Memo/Destination Tag 的鏈 | Andy 反應 |
+| 6 | POST /transfer | Request 中 `transaction` 與 `beneficiary` 新增 `memo` 欄位；新增 `encryption.kid` 欄位對應公鑰 ID | Andy 反應 + 配合 public_keys 變更 |
+| 7 | 資料模型 Person | 資料模型新增 `memo` 欄位 | Andy 反應 |
+| 8 | 資料模型 Transaction | 資料模型新增 `memo` 欄位 | Andy 反應 |
+| 9 | 支援的區塊鏈網路 | 新增 xrp, stellar, cosmos, eos 網路 | Andy 反應（配合 Memo/Tag 支援） |
+| 10 | 支援的資產類型 | 新增 XRP 資產 | Andy 反應 |
+| 11 | 需要 Memo/Tag 的網路 | 新增整個 section，列出需要 Memo/Tag 的網路及說明 | Andy 反應 |
+| 12 | HTTP 狀態碼 | 409 說明擴充包含重複 nonce 情境 | Lido 建議 |
+| 13 | 錯誤代碼 | 新增 `DUPLICATE_NONCE`, `NONCE_EXPIRED`, `KEY_EXPIRED` 錯誤代碼 | Lido 建議 + 配合 key rotation |
+| 14 | 完整流程圖 | 移除 VASP Registry 角色，改為 VASP A 直接查詢各 VASP 的分散式流程 | Kordan 反應（第一階段無 Registry） |
+| 15 | 時序圖（Mermaid） | 移除 VASP Registry 參與者，改為 VASP 間直接通訊的 P2P 模式 | Kordan 反應（第一階段無 Registry） |
+| 16 | Address Discovery 流程 | 新增整個 section，以 Mermaid flowchart 描述無 Registry 下的地址發現流程 | Kordan 反應 + 會議共識 |
+| 17 | VASP 註冊資訊 | 改為由公會秘書處維護 VASP 清單，而非中央 Registry | Kordan 反應 |
+| 18 | Rate Limiting | Rate Limit 數值改為 TBD，待公會秘書處統計各業者需求後確認 | 會議共識 |
+| 19 | 資料保留 | 新增 Nonce 記錄保留 24 小時的要求 | Lido 建議（配合 Nonce 機制） |

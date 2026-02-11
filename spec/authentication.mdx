@@ -1,0 +1,69 @@
+---
+title: "認證與安全"
+description: "傳輸層安全、API 認證、簽章計算、敏感資料加密與 IP 白名單"
+icon: "lock"
+---
+
+## 傳輸層安全
+
+- **強制使用 HTTPS**（TLS 1.2 以上）
+- **建議使用 mTLS**（雙向 TLS）進行 VASP 間認證
+
+## API 認證
+
+所有 API 請求必須包含以下 Headers：
+
+```
+X-VASP-ID: {vasp_id}
+X-Timestamp: {ISO8601_timestamp}
+X-Signature: {request_signature}
+X-Nonce: {unique_random_string_32_chars}
+```
+
+<Accordion title="[v2.0 新增] X-Nonce 防重放攻擊機制">
+每個 API 請求必須包含一個唯一的 32 字元隨機字串作為 Nonce。接收方 VASP 應：
+
+1. 檢查該 Nonce 是否已被使用過（建議保留至少 24 小時的 Nonce 記錄）
+2. 若 Nonce 重複，回傳 `409 Conflict` 錯誤（錯誤代碼 `DUPLICATE_NONCE`）
+3. 將 Nonce 納入簽章計算，確保攻擊者無法竄改 Nonce 值
+
+**威脅情境**：攻擊者可能攔截合法的 `/transfer` 請求，在簽章過期前重複發送相同請求，可能造成重複交易或資料洩漏。Nonce 機制可有效防止此類重放攻擊。
+</Accordion>
+
+### 簽章計算方式
+
+```
+signature = HMAC-SHA256(
+  key: shared_secret,
+  message: "{method}\n{path}\n{timestamp}\n{nonce}\n{body_hash}"
+)
+body_hash = SHA256(request_body)
+```
+
+<Note>
+**[v2.0 變更]** 簽章計算中新增 `{nonce}` 欄位，確保 Nonce 與簽章綁定，防止攻擊者替換 Nonce 後重送請求。
+</Note>
+
+## 敏感資料加密
+
+發起人/受益人的個人資訊（PII）應使用接收方 VASP 的公鑰進行加密：
+
+- **加密演算法**：RSA-OAEP 或 ECIES
+- **加密欄位**：originator.name、beneficiary.name 等 PII 欄位
+
+### 金鑰輪換機制
+
+<Accordion title="[v2.0 新增] VASP 間金鑰輪換流程">
+在第一階段的分散式架構下（無中央 Registry），各 VASP 透過以下機制管理金鑰輪換：
+
+1. 每個 VASP 的 `GET /vasp/info` 回應中，`public_keys` 陣列包含公鑰的 `expires_at` 欄位
+2. 各 VASP 應定期呼叫其他 VASP 的 `GET /vasp/info`，建議頻率不低於金鑰過期時間的一半（例如：金鑰有效期 1 年，則至少每 6 個月查詢一次）
+3. 當偵測到目標 VASP 的公鑰即將過期（建議提前 30 天），應主動取得新公鑰
+4. 金鑰輪換期間，VASP 可同時保留新舊公鑰（舊鑰 status 設為 `rotating`，新鑰 status 設為 `active`），確保轉換期間不影響服務
+
+**注意**：此為第一階段簡易做法。後續版本應規劃更完善的金鑰管理機制（如集中式金鑰目錄或憑證機制），避免持續依賴手動傳遞公鑰。
+</Accordion>
+
+## IP 白名單
+
+各 VASP 應維護境內 VASP 的 IP 白名單，僅接受來自已註冊 VASP 的請求。

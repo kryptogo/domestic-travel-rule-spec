@@ -1,0 +1,113 @@
+---
+title: "流程範例"
+description: "完整 Travel Rule 流程圖、時序圖與 Address Discovery 流程"
+icon: "diagram-project"
+---
+
+<Note>
+**[v2.0 變更]** 第一階段不設立中央 VASP Registry。Address Discovery 採用分散式做法：發起方 VASP 直接逐一查詢境內各 VASP，若所有查詢結果皆為否定，則將該地址歸類為境外地址或自託管錢包。
+</Note>
+
+## 完整 Travel Rule 流程（第一階段：無 Registry）
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│               Travel Rule 完整流程（第一階段：無 Registry）               │
+└─────────────────────────────────────────────────────────────────────────┘
+
+User A          VASP A                 VASP B ~ N               Blockchain
+  │               │                       │                        │
+  │ 1. 發起提領   │                       │                        │
+  │──────────────>│                       │                        │
+  │               │                       │                        │
+  │               │ 2. Address Discovery (逐一查詢各 VASP)          │
+  │               │   POST /address/verify                         │
+  │               │──────────────────────>│                        │
+  │               │                       │                        │
+  │               │ 3. 回傳 owned: true   │                        │
+  │               │<──────────────────────│ (假設 VASP B 擁有)     │
+  │               │                       │                        │
+  │               │ 4. GET /vasp/info     │                        │
+  │               │──────────────────────>│                        │
+  │               │                       │                        │
+  │               │ 5. 回傳 VASP 資訊 & 公鑰                      │
+  │               │<──────────────────────│                        │
+  │               │                       │                        │
+  │               │ 6. POST /transfer (加密的 TR 資料)             │
+  │               │──────────────────────>│                        │
+  │               │                       │                        │
+  │               │ 7. 回傳 pending       │                        │
+  │               │<──────────────────────│                        │
+  │               │                       │  8. 驗證受益人          │
+  │               │                       │───────────────>        │
+  │               │                       │                        │
+  │               │ 9. POST /transfers/{id}/confirm (accepted)     │
+  │               │<──────────────────────│                        │
+  │               │                       │                        │
+  │               │ 10. 執行鏈上轉帳      │                        │
+  │               │───────────────────────────────────────────────>│
+  │               │                       │                        │
+  │               │ 11. PATCH /transfers/{id} (tx_hash)            │
+  │               │──────────────────────>│                        │
+  │               │                       │                        │
+  │ 12. 通知完成  │                       │                        │
+  │<──────────────│                       │                        │
+  │               │                       │                        │
+```
+
+## 時序圖
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as 用戶 A
+    participant OV as VASP A (發起方)
+    participant BV as VASP B (受益方)
+    participant OtherVASPs as 其他 VASP
+    participant BC as Blockchain
+
+    User->>OV: 發起提領請求
+
+    Note over OV: Address Discovery<br/>(逐一查詢各境內 VASP)
+
+    OV->>BV: POST /address/verify
+    BV-->>OV: owned: true
+
+    OV->>OtherVASPs: POST /address/verify (可並行)
+    OtherVASPs-->>OV: owned: false
+
+    Note over OV: 確認地址屬於 VASP B
+
+    OV->>BV: GET /vasp/info
+    BV-->>OV: 回傳 VASP 資訊 & 公鑰
+
+    OV->>BV: POST /transfer<br/>(加密的 TR 資料)
+    BV-->>OV: 回傳 status: pending
+
+    Note over BV: 驗證受益人帳戶
+
+    BV->>OV: POST /transfers/{id}/confirm<br/>(accepted)
+
+    OV->>BC: 執行鏈上轉帳
+    BC-->>OV: 交易確認
+
+    OV->>BV: PATCH /transfers/{id}<br/>(補充 tx_hash)
+
+    OV-->>User: 通知轉帳完成
+```
+
+## Address Discovery 流程（無 Registry）[v2.0 新增]
+
+```mermaid
+flowchart TD
+    A[用戶發起提領至地址 X] --> B[取得境內 VASP 清單]
+    B --> C[逐一查詢各 VASP<br/>POST /address/verify]
+    C --> D{是否有 VASP<br/>回傳 owned: true?}
+    D -->|是| E[確認為境內 VASP 地址<br/>進入 Travel Rule 流程]
+    D -->|否| F[歸類為境外地址<br/>或自託管錢包]
+    F --> G[依各 VASP 內部政策處理<br/>如：要求用戶自我聲明]
+```
+
+<Note>
+各 VASP 需自行維護一份境內 VASP 的端點清單（Base URL）。在第一階段，此清單可透過公會秘書處統一維護與分發。後續版本可考慮建立中央 Registry 機制。
+</Note>

@@ -1,0 +1,58 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Domestic Travel Rule API Spec",
+  "colors": {
+    "primary": "#1a56db",
+    "light": "#3b82f6",
+    "dark": "#1e40af"
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "API Specification",
+        "groups": [
+          {
+            "group": "開始",
+            "pages": ["introduction", "spec/overview"]
+          },
+          {
+            "group": "認證與安全",
+            "pages": ["spec/authentication"]
+          },
+          {
+            "group": "API Endpoints",
+            "pages": [
+              "spec/endpoints/vasp-info",
+              "spec/endpoints/address-verify",
+              "spec/endpoints/transfer",
+              "spec/endpoints/transfer-confirm",
+              "spec/endpoints/transfer-status",
+              "spec/endpoints/transfer-update",
+              "spec/endpoints/health"
+            ]
+          },
+          {
+            "group": "資料模型",
+            "pages": ["spec/data-models"]
+          },
+          {
+            "group": "錯誤處理",
+            "pages": ["spec/error-handling"]
+          },
+          {
+            "group": "流程與範例",
+            "pages": ["spec/flow-examples"]
+          },
+          {
+            "group": "附錄",
+            "pages": ["spec/appendix", "spec/changelog"]
+          }
+        ]
+      }
+    ]
+  },
+  "footerSocials": {
+    "github": "https://github.com/kryptogo/domestic-travel-rule-spec"
+  }
+}

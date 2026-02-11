@@ -1,0 +1,35 @@
+---
+title: "概述"
+description: "境內 Travel Rule API 規格的目的、適用範圍與術語定義"
+icon: "book"
+---
+
+## 目的
+
+本文件定義境內虛擬資產服務提供商（VASP）之間實作 Travel Rule 所需的 API 規格，使各 VASP 能夠：
+
+- 查詢目標地址是否屬於境內 VASP
+- 交換交易相關的發起人/受益人資訊
+- 確認或拒絕交易資料
+
+## 適用範圍
+
+- 境內 VASP 對境內 VASP 的虛擬資產轉帳
+- 達到 Travel Rule 門檻的交易（依主管機關規定）
+
+## 版本資訊
+
+| 版本 | 日期 | 說明 |
+|------|------|------|
+| 1.0 | 2024-01-21 | 初版 |
+| 2.0 | 2025-02-11 | 加入 Nonce 防重放機制、公鑰過期時間、Memo/Tag 支援、移除 Registry 依賴 |
+
+## 術語定義
+
+| 術語 | 說明 |
+|------|------|
+| Originator | 發起人，發起轉帳的用戶 |
+| Beneficiary | 受益人，接收轉帳的用戶 |
+| Originating VASP | 發起方 VASP，處理發起人轉帳請求的交易所 |
+| Beneficiary VASP | 受益方 VASP，受益人所屬的交易所 |
+| Transfer | 一筆需要交換 Travel Rule 資料的轉帳 |

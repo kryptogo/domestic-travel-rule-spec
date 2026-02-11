@@ -1,0 +1,114 @@
+---
+title: "POST /transfer"
+description: "發起方 VASP 向受益方 VASP 發送 Travel Rule 資料"
+icon: "paper-plane"
+---
+
+發起方 VASP 向受益方 VASP 發送 Travel Rule 資料。
+
+## Request
+
+```json
+{
+  "transfer_id": "tr_20240121_001",
+  "transaction": {
+    "tx_hash": null,
+    "network": "ethereum",
+    "asset": "ETH",
+    "amount": "1.5",
+    "amount_usd": "3500.00",
+    "memo": null,
+    "originated_at": "2024-01-21T10:00:00Z"
+  },
+  "originator": {
+    "originator_type": "natural_person",
+    "name": "{encrypted}",
+    "account_id": "user_12345",
+    "address": "0xOriginator...",
+    "identification": {
+      "type": "national_id",
+      "number": "{encrypted}",
+      "country": "TW"
+    },
+    "date_of_birth": "{encrypted}",
+    "place_of_birth": "{encrypted}",
+    "physical_address": "{encrypted}"
+  },
+  "beneficiary": {
+    "beneficiary_type": "natural_person",
+    "name": "{encrypted}",
+    "address": "0xBeneficiary...",
+    "memo": null,
+    "account_id": null
+  },
+  "originating_vasp": {
+    "vasp_id": "VASP_A",
+    "legal_name": "某某交易所股份有限公司",
+    "lei_code": "5493001KJTIIGC8Y1R17"
+  },
+  "beneficiary_vasp": {
+    "vasp_id": "VASP_B"
+  },
+  "encryption": {
+    "kid": "key-2024-001"
+  },
+  "callback_url": "https://api.vasp-a.com/travel-rule/v1/callback",
+  "expires_at": "2024-01-21T10:30:00Z"
+}
+```
+
+### Request Fields
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| transfer_id | string | Y | 唯一交易識別碼 |
+| transaction | object | Y | 交易資訊 |
+| transaction.tx_hash | string | N | 鏈上交易 hash（可後補） |
+| transaction.network | string | Y | 區塊鏈網路 |
+| transaction.asset | string | Y | 資產類型 |
+| transaction.amount | string | Y | 轉帳金額 |
+| transaction.amount_usd | string | N | 等值美元金額 |
+| transaction.memo | string | N | **[v2.0 新增]** Memo / Destination Tag |
+| transaction.originated_at | string | Y | 交易發起時間 |
+| originator | object | Y | 發起人資訊 |
+| originator.originator_type | string | Y | natural_person / legal_person |
+| originator.name | string | Y | 姓名（加密） |
+| originator.account_id | string | Y | 在發起方 VASP 的帳戶 ID |
+| originator.address | string | Y | 發起人的區塊鏈地址 |
+| originator.identification | object | Y | 身分證明文件 |
+| originator.date_of_birth | string | N | 出生日期（加密） |
+| originator.place_of_birth | string | N | 出生地（加密） |
+| originator.physical_address | string | N | 實體地址（加密） |
+| beneficiary | object | Y | 受益人資訊 |
+| beneficiary.beneficiary_type | string | Y | natural_person / legal_person |
+| beneficiary.name | string | N | 姓名（加密，如發起人提供） |
+| beneficiary.address | string | Y | 受益人的區塊鏈地址 |
+| beneficiary.memo | string | N | **[v2.0 新增]** 受益人地址對應的 Memo / Destination Tag |
+| originating_vasp | object | Y | 發起方 VASP 資訊 |
+| beneficiary_vasp | object | Y | 受益方 VASP 資訊 |
+| encryption | object | N | **[v2.0 新增]** 加密資訊 |
+| encryption.kid | string | N | **[v2.0 新增]** 加密使用的金鑰 ID，對應 public_keys[].kid |
+| callback_url | string | N | 狀態更新回呼 URL |
+| expires_at | string | Y | 請求過期時間 |
+
+## Response
+
+```json
+{
+  "transfer_id": "tr_20240121_001",
+  "status": "pending",
+  "received_at": "2024-01-21T10:00:05Z",
+  "message": "Transfer request received, pending verification"
+}
+```
+
+## Transfer Status 狀態說明
+
+| 狀態 | 說明 |
+|------|------|
+| pending | 已收到，等待受益方驗證 |
+| accepted | 受益方已確認接受 |
+| rejected | 受益方拒絕 |
+| expired | 請求已過期 |
+| completed | 交易完成（鏈上確認） |
+| failed | 交易失敗 |

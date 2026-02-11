@@ -1,0 +1,95 @@
+---
+title: "資料模型"
+description: "Person、VASP、Transaction 資料結構與支援的區塊鏈網路"
+icon: "database"
+---
+
+## Person（自然人/法人）
+
+```json
+{
+  "type": "natural_person | legal_person",
+  "name": "string (encrypted)",
+  "account_id": "string",
+  "address": "string (blockchain address)",
+  "memo": "string (Memo/Tag, if applicable)",
+  "identification": {
+    "type": "national_id | passport | company_registration",
+    "number": "string (encrypted)",
+    "country": "string (ISO 3166-1 alpha-2)"
+  },
+  "date_of_birth": "string (encrypted, YYYY-MM-DD)",
+  "place_of_birth": "string (encrypted)",
+  "physical_address": "string (encrypted)"
+}
+```
+
+## VASP
+
+```json
+{
+  "vasp_id": "string",
+  "legal_name": "string",
+  "display_name": "string",
+  "lei_code": "string",
+  "jurisdiction": "string (ISO 3166-1 alpha-2)"
+}
+```
+
+## Transaction
+
+```json
+{
+  "tx_hash": "string",
+  "network": "string",
+  "asset": "string",
+  "amount": "string (decimal)",
+  "amount_usd": "string (decimal)",
+  "memo": "string (Memo/Tag, if applicable)",
+  "block_number": "integer",
+  "originated_at": "string (ISO 8601)",
+  "confirmed_at": "string (ISO 8601)"
+}
+```
+
+## 支援的區塊鏈網路
+
+| Network ID | 說明 |
+|------|------|
+| bitcoin | Bitcoin 主網 |
+| ethereum | Ethereum 主網 |
+| tron | Tron 主網 |
+| bsc | BNB Smart Chain |
+| polygon | Polygon |
+| arbitrum | Arbitrum One |
+| optimism | Optimism |
+| solana | Solana |
+| xrp | **[v2.0 新增]** XRP Ledger |
+| stellar | **[v2.0 新增]** Stellar |
+| cosmos | **[v2.0 新增]** Cosmos Hub |
+| eos | **[v2.0 新增]** EOS |
+
+## 支援的資產類型
+
+| Asset | Network | 說明 |
+|------|------|------|
+| BTC | bitcoin | Bitcoin |
+| ETH | ethereum | Ethereum |
+| USDT | ethereum, tron, bsc | Tether USD |
+| USDC | ethereum, polygon | USD Coin |
+| XRP | xrp | **[v2.0 新增]** XRP |
+
+## 需要 Memo/Tag 的網路 [v2.0 新增]
+
+以下網路在進行地址查詢與交易時，可能需要同時提供 Memo 或 Destination Tag：
+
+| Network | Memo 欄位名稱 | 說明 |
+|------|------|------|
+| xrp | Destination Tag | 數字型態，用於區分同一地址下的不同用戶 |
+| stellar | Memo | 文字或數字型態 |
+| cosmos | Memo | 文字型態 |
+| eos | Memo | 文字型態 |
+
+<Warning>
+發起方 VASP 在查詢地址及發送 Transfer 時，若目標網路屬於上述類型，**必須**提供對應的 memo 欄位。
+</Warning>

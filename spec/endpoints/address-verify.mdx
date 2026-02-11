@@ -1,0 +1,77 @@
+---
+title: "POST /address/verify"
+description: "查詢指定地址是否屬於該 VASP"
+icon: "magnifying-glass"
+---
+
+查詢指定地址是否屬於該 VASP。
+
+## Request
+
+```json
+{
+  "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f8fE21",
+  "network": "ethereum",
+  "asset": "ETH",
+  "memo": null,
+  "request_id": "req_abc123"
+}
+```
+
+### Request Fields
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| address | string | Y | 要查詢的區塊鏈地址 |
+| network | string | Y | 區塊鏈網路（bitcoin, ethereum, tron...） |
+| asset | string | N | 資產類型（用於多資產地址） |
+| memo | string | N | **[v2.0 新增]** Memo / Destination Tag（適用於 XRP, XLM, ATOM, EOS 等需要 Memo/Tag 的鏈） |
+| request_id | string | Y | 請求唯一識別碼（用於冪等性） |
+
+<Accordion title="[v2.0 新增] 關於 Memo / Destination Tag">
+部分區塊鏈（如 XRP、XLM、ATOM、EOS）使用共用地址搭配 Memo 或 Destination Tag 來區分不同用戶。對於這類鏈，僅查詢地址（address）可能不足以確認受益人身份，必須同時提供 `memo` 欄位。
+
+- 若該鏈不使用 Memo/Tag 機制，此欄位可為 `null` 或省略
+- 受益方 VASP 在驗證地址時，應同時比對 address 與 memo 的組合
+</Accordion>
+
+## Response
+
+<Tabs>
+  <Tab title="地址屬於該 VASP">
+```json
+{
+  "request_id": "req_abc123",
+  "owned": true,
+  "vasp_id": "VASP_B",
+  "vasp_name": "交易所 B",
+  "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f8fE21",
+  "memo": null,
+  "verified_at": "2024-01-21T10:00:00Z"
+}
+```
+  </Tab>
+  <Tab title="地址不屬於該 VASP">
+```json
+{
+  "request_id": "req_abc123",
+  "owned": false,
+  "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f8fE21",
+  "memo": null,
+  "verified_at": "2024-01-21T10:00:00Z"
+}
+```
+  </Tab>
+</Tabs>
+
+### Response Fields
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| request_id | string | Y | 對應請求的識別碼 |
+| owned | boolean | Y | 該地址是否屬於此 VASP |
+| vasp_id | string | N | VASP 識別碼（owned=true 時） |
+| vasp_name | string | N | VASP 名稱（owned=true 時） |
+| address | string | Y | 查詢的地址 |
+| memo | string | N | **[v2.0 新增]** 對應的 Memo / Destination Tag |
+| verified_at | string | Y | 查詢時間（ISO 8601） |

@@ -1,0 +1,57 @@
+---
+title: "附錄"
+description: "VASP 註冊資訊、測試環境、Rate Limiting、資料保留與參考標準"
+icon: "paperclip"
+---
+
+## VASP 註冊資訊
+
+各 VASP 需向公會秘書處提供以下資訊，由秘書處統一維護與分發：
+
+<Note>
+**[v2.0 變更]** 第一階段不設立中央 VASP Registry，改由公會秘書處維護 VASP 清單。
+</Note>
+
+| 欄位 | 說明 |
+|------|------|
+| vasp_id | 唯一識別碼 |
+| legal_name | 公司登記名稱 |
+| lei_code | LEI 代碼（如有） |
+| api_endpoint | API 基礎 URL |
+| public_key | 加密用公鑰 |
+| ip_whitelist | 允許的 IP 列表 |
+| supported_assets | 支援的資產列表 |
+| contact_email | 技術聯絡信箱 |
+
+## 測試環境
+
+各 VASP 應提供 Sandbox 測試環境：
+
+- **Sandbox URL**: `https://sandbox-api.{vasp-domain}/travel-rule/v1`
+- **測試網路**: Hoodi (Ethereum), Testnet (Bitcoin)
+
+## Rate Limiting
+
+<Warning>
+**[v2.0 變更]** 以下數值為暫定值，待公會秘書處統計各家業者需求後，以交易量較大的業者為參考基準確認最終數值。此數值在後續版本中可依實際使用狀況調整。
+</Warning>
+
+| 端點 | 限制 | 備註 |
+|------|------|------|
+| /address/verify | TBD requests/minute | 待確認：需考量 Address Discovery 逐一查詢的場景 |
+| /transfer | TBD requests/minute | 待確認：以交易量最大業者為基準 |
+| /transfers/{id} | TBD requests/minute | 待確認 |
+| /vasp/info | 10 requests/minute | 此 API 呼叫頻率低，暫維持原值 |
+
+## 資料保留
+
+- Travel Rule 資料應保留至少 **5 年**
+- 交易紀錄應包含完整的稽核軌跡
+- **[v2.0 新增]** Nonce 記錄應保留至少 **24 小時**，用於防重放檢查
+
+## 參考標準
+
+- [FATF Recommendation 16](https://www.fatf-gafi.org/recommendations.html)
+- [TRISA Protocol](https://trisa.io/)
+- [OpenVASP](https://openvasp.org/)
+- [interVASP Messaging Standard (IVMS101)](https://intervasp.org/)

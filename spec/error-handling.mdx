@@ -1,0 +1,58 @@
+---
+title: "錯誤處理"
+description: "HTTP 狀態碼、錯誤回應格式與錯誤代碼一覽"
+icon: "triangle-exclamation"
+---
+
+## HTTP 狀態碼
+
+| 狀態碼 | 說明 |
+|------|------|
+| 200 | 成功 |
+| 201 | 建立成功 |
+| 400 | 請求參數錯誤 |
+| 401 | 認證失敗 |
+| 403 | 權限不足 |
+| 404 | 資源不存在 |
+| 409 | 衝突（如重複的 transfer_id 或重複的 nonce） |
+| 422 | 資料驗證失敗 |
+| 429 | 請求過於頻繁 |
+| 500 | 伺服器內部錯誤 |
+| 503 | 服務暫時無法使用 |
+
+## 錯誤回應格式
+
+```json
+{
+  "error": {
+    "code": "INVALID_REQUEST",
+    "message": "The request body is invalid",
+    "details": [
+      {
+        "field": "originator.name",
+        "message": "This field is required"
+      }
+    ],
+    "request_id": "req_abc123"
+  }
+}
+```
+
+## 錯誤代碼
+
+| 代碼 | HTTP | 說明 |
+|------|------|------|
+| INVALID_REQUEST | 400 | 請求格式錯誤 |
+| INVALID_SIGNATURE | 401 | 簽章驗證失敗 |
+| UNAUTHORIZED | 401 | 未授權的 VASP |
+| FORBIDDEN | 403 | 權限不足 |
+| NOT_FOUND | 404 | 資源不存在 |
+| SERVICE_NOT_REGISTERED | 403 | 該 VASP 未註冊此業務（如未註冊移轉業務） |
+| DUPLICATE_TRANSFER | 409 | 重複的 transfer_id |
+| DUPLICATE_NONCE | 409 | **[v2.0 新增]** 重複的 Nonce（疑似重放攻擊） |
+| NONCE_EXPIRED | 400 | **[v2.0 新增]** Nonce 已超過有效時間窗口 |
+| KEY_EXPIRED | 400 | **[v2.0 新增]** 使用的加密金鑰已過期 |
+| VALIDATION_ERROR | 422 | 資料驗證失敗 |
+| RATE_LIMITED | 429 | 超過請求限制 |
+| INTERNAL_ERROR | 500 | 內部錯誤 |
+| SERVICE_UNAVAILABLE | 503 | 服務暫停 |

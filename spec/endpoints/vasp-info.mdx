@@ -1,0 +1,122 @@
+---
+title: "GET /vasp/info"
+description: "取得 VASP 基本資訊與公鑰"
+icon: "building"
+---
+
+取得該 VASP 的基本資訊與公鑰。
+
+<Note>
+各 VASP 應定期呼叫此 API 以取得最新公鑰。呼叫頻率應參考回應中 `public_keys[].expires_at` 欄位，在公鑰過期前主動更新。
+</Note>
+
+## Request Headers
+
+```
+X-VASP-ID: VASP_A
+X-Timestamp: 2024-01-21T10:00:00Z
+X-Signature: {signature}
+X-Nonce: {unique_random_string_32_chars}
+```
+
+## Response
+
+```json
+{
+  "vasp_id": "VASP_B",
+  "legal_name": "某某交易所股份有限公司",
+  "display_name": "交易所 B",
+  "lei_code": "5493001KJTIIGC8Y1R12",
+  "jurisdiction": "TW",
+  "registered_services": [
+    {
+      "service_type": "exchange",
+      "registered": true,
+      "license_number": "FSC-VASP-2024-001"
+    },
+    {
+      "service_type": "transfer",
+      "registered": true,
+      "license_number": "FSC-VASP-2024-001"
+    },
+    {
+      "service_type": "custody",
+      "registered": true,
+      "license_number": "FSC-VASP-2024-001"
+    }
+  ],
+  "supported_assets": [
+    { "symbol": "BTC", "network": "bitcoin" },
+    { "symbol": "ETH", "network": "ethereum" },
+    { "symbol": "USDT", "network": "ethereum" }
+  ],
+  "public_keys": [
+    {
+      "kid": "key-2024-001",
+      "algorithm": "RSA-2048",
+      "key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkq...\n-----END PUBLIC KEY-----",
+      "status": "active",
+      "created_at": "2024-01-01T00:00:00Z",
+      "expires_at": "2025-01-01T00:00:00Z"
+    }
+  ],
+  "endpoints": {
+    "address_verify": "https://api.vasp-b.com/travel-rule/v1/address/verify",
+    "transfer": "https://api.vasp-b.com/travel-rule/v1/transfer"
+  },
+  "api_version": "1.0",
+  "status": "active"
+}
+```
+
+## Response Fields
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| vasp_id | string | Y | VASP 唯一識別碼 |
+| legal_name | string | Y | 公司登記名稱 |
+| display_name | string | Y | 顯示名稱 |
+| lei_code | string | N | LEI 代碼（如有） |
+| jurisdiction | string | Y | 註冊地（ISO 3166-1 alpha-2） |
+| registered_services | array | Y | 註冊業務類型列表（見下表） |
+| supported_assets | array | Y | 支援的資產列表 |
+| public_keys | array | Y | 用於加密通訊的公鑰列表 **[v2.0 變更：由單一物件改為陣列]** |
+| endpoints | object | Y | API 端點 URL |
+| api_version | string | Y | 支援的 API 版本 |
+| status | string | Y | 狀態：active / maintenance / inactive |
+
+## Public Keys 欄位 [v2.0 新增]
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| kid | string | Y | 金鑰唯一識別碼（Key ID） |
+| algorithm | string | Y | 加密演算法（RSA-2048, ECIES 等） |
+| key | string | Y | 公鑰內容（PEM 格式） |
+| status | string | Y | 金鑰狀態：`active` / `rotating` / `revoked` |
+| created_at | string | Y | 金鑰建立時間（ISO 8601） |
+| expires_at | string | Y | 金鑰過期時間（ISO 8601） |
+
+**金鑰狀態說明**：
+- `active`：目前使用中的金鑰，其他 VASP 應使用此金鑰加密
+- `rotating`：即將淘汰的舊金鑰，仍可用於解密但不應再用於加密新訊息
+- `revoked`：已撤銷的金鑰，不可使用
+
+## Registered Services 欄位
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| service_type | string | Y | 業務類型：exchange / transfer / custody |
+| registered | boolean | Y | 是否已註冊該業務 |
+| license_number | string | N | 許可證字號 |
+
+## Service Types 業務類型
+
+| 類型 | 說明 | Travel Rule 影響 |
+|------|------|------|
+| exchange | 虛擬資產兌換 | - |
+| transfer | 虛擬資產移轉 | 若未註冊，無法接收 Travel Rule 資料交換 |
+| custody | 虛擬資產保管 | - |
+
+<Warning>
+呼叫方應先檢查目標 VASP 是否已註冊 transfer 業務。若該 VASP 未註冊移轉業務，後續的 /address/verify 與 /transfer API 呼叫將會失敗並回傳 `SERVICE_NOT_REGISTERED` 錯誤。
+</Warning>

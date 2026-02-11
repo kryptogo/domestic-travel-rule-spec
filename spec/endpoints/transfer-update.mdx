@@ -1,0 +1,29 @@
+---
+title: "PATCH /transfers/{id}"
+description: "更新交易資訊（如補充 tx_hash）"
+icon: "pen-to-square"
+---
+
+更新交易資訊（如補充 tx_hash）。
+
+## Request
+
+```json
+{
+  "transaction": {
+    "tx_hash": "0x123abc...",
+    "block_number": 12345678
+  },
+  "status": "completed"
+}
+```
+
+## Response
+
+```json
+{
+  "transfer_id": "tr_20240121_001",
+  "status": "completed",
+  "updated_at": "2024-01-21T10:10:00Z"
+}
+```

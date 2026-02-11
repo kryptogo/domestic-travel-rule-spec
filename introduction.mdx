@@ -1,0 +1,41 @@
+---
+title: "境內 Travel Rule API 規格"
+description: "台灣境內虛擬資產服務提供商（VASP）之間實作 Travel Rule 所需的 API 規格文件"
+---
+
+## 目的
+
+本規格定義境內 VASP 之間實作 Travel Rule 所需的 API，使各 VASP 能夠：
+
+- 查詢目標地址是否屬於境內 VASP
+- 交換交易相關的發起人 / 受益人資訊
+- 確認或拒絕交易資料
+
+## 適用範圍
+
+- 境內 VASP 對境內 VASP 的虛擬資產轉帳
+- 達到 Travel Rule 門檻的交易（依主管機關規定）
+
+## 目前版本
+
+| 版本 | 日期 | 說明 |
+|------|------|------|
+| 2.0 | 2025-02-11 | 加入 Nonce 防重放機制、公鑰過期時間、Memo/Tag 支援、移除 Registry 依賴 |
+| 1.0 | 2024-01-21 | 初版 |
+
+## 如何參與
+
+- **提出建議**：請至 [GitHub Issues](https://github.com/kryptogo/domestic-travel-rule-spec/issues) 開 Issue
+- **提交修改**：請發送 [Pull Request](https://github.com/kryptogo/domestic-travel-rule-spec/pulls)
+- **討論交流**：請至 [GitHub Discussions](https://github.com/kryptogo/domestic-travel-rule-spec/discussions)
+
+## 快速連結
+
+<CardGroup cols={2}>
+  <Card title="完整 API 規格" icon="book" href="/api-spec">
+    查看完整的 API 規格文件，包含所有 Endpoints、資料模型與流程範例
+  </Card>
+  <Card title="GitHub Repo" icon="github" href="https://github.com/kryptogo/domestic-travel-rule-spec">
+    查看原始碼、提交 Issue 或 Pull Request
+  </Card>
+</CardGroup>

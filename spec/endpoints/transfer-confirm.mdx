@@ -1,0 +1,70 @@
+---
+title: "POST /transfers/{id}/confirm"
+description: "受益方 VASP 確認或拒絕 Travel Rule 資料"
+icon: "circle-check"
+---
+
+受益方 VASP 確認或拒絕 Travel Rule 資料。
+
+## Request
+
+<Tabs>
+  <Tab title="接受">
+```json
+{
+  "status": "accepted",
+  "beneficiary": {
+    "account_id": "user_67890",
+    "name": "{encrypted}",
+    "verified": true
+  },
+  "confirmed_at": "2024-01-21T10:05:00Z"
+}
+```
+  </Tab>
+  <Tab title="拒絕">
+```json
+{
+  "status": "rejected",
+  "reject_code": "BENEFICIARY_NOT_FOUND",
+  "reject_reason": "The beneficiary address is not associated with any active account",
+  "rejected_at": "2024-01-21T10:05:00Z"
+}
+```
+  </Tab>
+</Tabs>
+
+### Request Fields
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| status | string | Y | accepted / rejected |
+| beneficiary | object | N | 受益人確認資訊（accepted 時） |
+| beneficiary.account_id | string | N | 受益人在該 VASP 的帳戶 ID |
+| beneficiary.name | string | N | 受益人姓名（加密） |
+| beneficiary.verified | boolean | N | 是否已完成 KYC 驗證 |
+| confirmed_at | string | N | 確認時間 |
+| reject_code | string | N | 拒絕代碼（rejected 時） |
+| reject_reason | string | N | 拒絕原因說明 |
+| rejected_at | string | N | 拒絕時間 |
+
+## Reject Codes
+
+| 代碼 | 說明 |
+|------|------|
+| BENEFICIARY_NOT_FOUND | 找不到受益人帳戶 |
+| BENEFICIARY_SUSPENDED | 受益人帳戶已停用 |
+| BENEFICIARY_NAME_MISMATCH | 受益人姓名不符 |
+| INVALID_DATA | 資料格式錯誤 |
+| COMPLIANCE_REJECTION | 合規性拒絕 |
+| INTERNAL_ERROR | 內部錯誤 |
+
+## Response
+
+```json
+{
+  "transfer_id": "tr_20240121_001",
+  "status": "accepted",
+  "updated_at": "2024-01-21T10:05:00Z"
+}
+```
