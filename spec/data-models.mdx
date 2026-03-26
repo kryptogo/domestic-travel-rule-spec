@@ -14,15 +14,60 @@ icon: "database"
   "address": "string (blockchain address)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "national_id | passport | company_registration",
+    "type": "national_id | passport | company_registration | lei | tax_id | business_registration",
     "number": "string (encrypted)",
     "country": "string (ISO 3166-1 alpha-2)"
   },
-  "date_of_birth": "string (encrypted, YYYY-MM-DD)",
+  "date_of_birth": "string (encrypted, YYYY or YYYY-MM or YYYY-MM-DD)",
   "place_of_birth": "string (encrypted)",
-  "physical_address": "string (encrypted)"
+  "physical_address": {
+    "country": "string (ISO 3166-1 alpha-2, e.g. TW)",
+    "city": "string (city name)"
+  }
 }
 ```
+
+### Identification Types
+
+| Type | 說明 | 優先順序 |
+|------|------|----------|
+| national_id | 身分證字號 | - |
+| passport | 護照號碼 | - |
+| company_registration | 公司登記字號 | 3 |
+| lei | **[v2.1 新增]** Legal Entity Identifier（法人識別碼） | 1（最優先） |
+| tax_id | **[v2.1 新增]** 統一編號 | 2 |
+| business_registration | **[v2.1 新增]** 公司登記字號 | 3 |
+
+<Note>
+法人 identification type 優先順序：`lei` > `tax_id` > `business_registration`。若有 LEI 碼應優先使用。
+</Note>
+
+### date_of_birth 格式 [v2.1 變更]
+
+`date_of_birth` 欄位允許以下三種格式（至少須提供年份）：
+
+| 格式 | 範例 | 說明 |
+|------|------|------|
+| `YYYY` | `"1990"` | 至少須提供 |
+| `YYYY-MM` | `"1990-05"` | best effort |
+| `YYYY-MM-DD` | `"1990-05-15"` | 完整日期 |
+
+驗證用正規表達式：`^\d{4}(-\d{2}(-\d{2})?)?$`
+
+### physical_address 結構 [v2.1 變更]
+
+`physical_address` 由原本的單一加密字串，改為結構化物件（加密後傳送）：
+
+| 欄位 | 類型 | 說明 |
+|------|------|------|
+| country | string | ISO 3166-1 alpha-2 國家碼（如 `"TW"`） |
+| city | string | 城鎮名稱 |
+
+<Warning>
+當交易金額等值 ≥ 30,000 TWD 時，`physical_address` 為**必填**欄位；其餘情況為 optional。
+
+`city` 欄位的標準化用詞（如 `"New Taipei City"` vs `"新北市"`）待確認，將參考 ISO 3166-2:TW 或其他標準。
+</Warning>
 
 ## VASP
 

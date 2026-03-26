@@ -32,16 +32,23 @@ icon: "paperclip"
 
 ## Rate Limiting
 
-<Warning>
-**[v2.0 變更]** 以下數值為暫定值，待公會秘書處統計各家業者需求後，以交易量較大的業者為參考基準確認最終數值。此數值在後續版本中可依實際使用狀況調整。
-</Warning>
+<Note>
+**[v2.1 變更]** 以下數值由第三次技術會議（2026-03-26）定案。Phase 1 暫定值，Sandbox 壓測後可滾動調整。
+</Note>
 
-| 端點 | 限制 | 備註 |
-|------|------|------|
-| /address/verify | TBD requests/minute | 待確認：需考量 Address Discovery 逐一查詢的場景 |
-| /transfer | TBD requests/minute | 待確認：以交易量最大業者為基準 |
-| /transfers/{id} | TBD requests/minute | 待確認 |
-| /vasp/info | 10 requests/minute | 此 API 呼叫頻率低，暫維持原值 |
+| 端點 | Method | 限制 | 備註 |
+|------|--------|------|------|
+| /address/verify | POST | 200 requests/minute | 最大業者約 100 筆/分鐘 × N-1 廣播，含 2x buffer |
+| /transfer | POST | 60 requests/minute | 實際配對交易量遠低於 address verify |
+| /transfers/{id} | PATCH | 30 requests/minute | 每筆最多 PATCH 1-2 次 |
+| /transfers/{id} | GET | 60 requests/minute | 狀態 polling 場景 |
+| /vasp/info | GET | 10 requests/minute | 低頻，取公鑰/VASP 資訊 |
+
+**實作要點**：
+- 超過限制回傳 `429 Too Many Requests`
+- Response Header 須包含 `Retry-After`（秒數）
+- 建議各家使用 sliding window 或 token bucket 實作
+- Rate limit 以 per-VASP（依 `X-VASP-ID` header）計算，非 per-IP
 
 ## 資料保留
 

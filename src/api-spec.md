@@ -31,6 +31,7 @@
 |------|------|------|
 | 1.0 | 2024-01-21 | 初版 |
 | 2.0 | 2025-02-11 | 加入 Nonce 防重放機制、公鑰過期時間、Memo/Tag 支援、移除 Registry 依賴 |
+| 2.1 | 2026-03-26 | 第三次技術會議：physical_address 結構化、date_of_birth 格式放寬、identification type 擴充、Rate Limit 定案、config versioning |
 
 ### 1.4 術語定義
 
@@ -185,8 +186,10 @@ X-Nonce: {unique_random_string_32_chars}
     "address_verify": "https://api.vasp-b.com/travel-rule/v1/address/verify",
     "transfer": "https://api.vasp-b.com/travel-rule/v1/transfer"
   },
-  "api_version": "1.0",
-  "status": "active"
+  "api_version": "2.1",
+  "status": "active",
+  "config_version": 3,
+  "config_updated_at": "2026-03-26T10:00:00Z"
 }
 ```
 
@@ -205,6 +208,8 @@ X-Nonce: {unique_random_string_32_chars}
 | endpoints | object | Y | API 端點 URL |
 | api_version | string | Y | 支援的 API 版本 |
 | status | string | Y | 狀態：active / maintenance / inactive |
+| config_version | integer | Y | **[v2.1 新增]** 設定檔版本號（遞增），用於偵測 VASP 資訊是否有變更 |
+| config_updated_at | string | Y | **[v2.1 新增]** 設定檔最後更新時間（ISO 8601） |
 
 **Public Keys 欄位** **[v2.0 新增]**
 
@@ -389,14 +394,20 @@ X-Nonce: {unique_random_string_32_chars}
 | originator.account_id | string | Y | 在發起方 VASP 的帳戶 ID |
 | originator.address | string | Y | 發起人的區塊鏈地址 |
 | originator.identification | object | Y | 身分證明文件 |
-| originator.date_of_birth | string | N | 出生日期（加密） |
+| originator.identification.type | string | Y | **[v2.1 擴充]** national_id / passport / company_registration / lei / tax_id / business_registration |
+| originator.date_of_birth | string | N | **[v2.1 變更]** 出生日期（加密），接受 YYYY / YYYY-MM / YYYY-MM-DD 格式 |
 | originator.place_of_birth | string | N | 出生地（加密） |
-| originator.physical_address | string | N | 實體地址（加密） |
+| originator.physical_address | object | N | **[v2.1 變更]** 實體地址（結構化物件，加密後傳送）；金額 ≥ 30,000 TWD 等值時為必填 |
+| originator.physical_address.country | string | Cond. | ISO 3166-1 alpha-2 國家碼 |
+| originator.physical_address.city | string | Cond. | 城鎮名稱 |
 | beneficiary | object | Y | 受益人資訊 |
 | beneficiary.beneficiary_type | string | Y | natural_person / legal_person |
 | beneficiary.name | string | N | 姓名（加密，如發起人提供） |
 | beneficiary.address | string | Y | 受益人的區塊鏈地址 |
 | beneficiary.memo | string | N | **[v2.0 新增]** 受益人地址對應的 Memo / Destination Tag |
+| beneficiary.physical_address | object | N | **[v2.1 新增]** 受益人實體地址（結構化物件，加密後傳送）；金額 ≥ 30,000 TWD 等值時為必填 |
+| beneficiary.physical_address.country | string | Cond. | ISO 3166-1 alpha-2 國家碼 |
+| beneficiary.physical_address.city | string | Cond. | 城鎮名稱 |
 | originating_vasp | object | Y | 發起方 VASP 資訊 |
 | beneficiary_vasp | object | Y | 受益方 VASP 資訊 |
 | encryption | object | N | **[v2.0 新增]** 加密資訊 |
@@ -595,13 +606,16 @@ X-Nonce: {unique_random_string_32_chars}
   "address": "string (blockchain address)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "national_id | passport | company_registration",
+    "type": "national_id | passport | company_registration | lei | tax_id | business_registration",
     "number": "string (encrypted)",
     "country": "string (ISO 3166-1 alpha-2)"
   },
-  "date_of_birth": "string (encrypted, YYYY-MM-DD)",
+  "date_of_birth": "string (encrypted, YYYY or YYYY-MM or YYYY-MM-DD)",
   "place_of_birth": "string (encrypted)",
-  "physical_address": "string (encrypted)"
+  "physical_address": {
+    "country": "string (ISO 3166-1 alpha-2, e.g. TW)",
+    "city": "string (city name)"
+  }
 }
 ```
 
@@ -724,7 +738,7 @@ X-Nonce: {unique_random_string_32_chars}
 | NONCE_EXPIRED | 400 | **[v2.0 新增]** Nonce 已超過有效時間窗口 |
 | KEY_EXPIRED | 400 | **[v2.0 新增]** 使用的加密金鑰已過期 |
 | VALIDATION_ERROR | 422 | 資料驗證失敗 |
-| RATE_LIMITED | 429 | 超過請求限制 |
+| RATE_LIMITED | 429 | 超過請求限制（Response Header 須包含 `Retry-After` 秒數） |
 | INTERNAL_ERROR | 500 | 內部錯誤 |
 | SERVICE_UNAVAILABLE | 503 | 服務暫停 |
 
@@ -864,14 +878,21 @@ flowchart TD
 
 ### 7.3 Rate Limiting
 
-> **[v2.0 變更]** 以下數值為暫定值，待公會秘書處統計各家業者需求後，以交易量較大的業者為參考基準確認最終數值。此數值在後續版本中可依實際使用狀況調整。
+> **[v2.1 變更]** 以下數值由第三次技術會議（2026-03-26）定案。Phase 1 暫定值，Sandbox 壓測後可滾動調整。
 
-| 端點 | 限制 | 備註 |
-|------|------|------|
-| /address/verify | TBD requests/minute | 待確認：需考量 Address Discovery 逐一查詢的場景 |
-| /transfer | TBD requests/minute | 待確認：以交易量最大業者為基準 |
-| /transfers/{id} | TBD requests/minute | 待確認 |
-| /vasp/info | 10 requests/minute | 此 API 呼叫頻率低，暫維持原值 |
+| 端點 | Method | 限制 | 備註 |
+|------|--------|------|------|
+| /address/verify | POST | 200 requests/minute | 最大業者約 100 筆/分鐘 × N-1 廣播，含 2x buffer |
+| /transfer | POST | 60 requests/minute | 實際配對交易量遠低於 address verify |
+| /transfers/{id} | PATCH | 30 requests/minute | 每筆最多 PATCH 1-2 次 |
+| /transfers/{id} | GET | 60 requests/minute | 狀態 polling 場景 |
+| /vasp/info | GET | 10 requests/minute | 低頻，取公鑰/VASP 資訊 |
+
+**實作要點**：
+- 超過限制回傳 `429 Too Many Requests`
+- Response Header 須包含 `Retry-After`（秒數）
+- 建議各家使用 sliding window 或 token bucket 實作
+- Rate limit 以 per-VASP（依 `X-VASP-ID` header）計算，非 per-IP
 
 ### 7.4 資料保留
 
@@ -891,7 +912,8 @@ flowchart TD
 | 版本 | 日期 | 變更說明 | 作者 |
 |------|------|------|------|
 | 1.0 | 2024-01-21 | 初版發布 | - |
-| 2.0 | 2025-02-11 | 見下方詳細變更列表 | KryptoGO |
+| 2.0 | 2025-02-11 | 見下方 v2.0 詳細變更列表 | KryptoGO |
+| 2.1 | 2026-03-26 | 第三次技術會議決議：見下方 v2.1 詳細變更列表 | KryptoGO |
 
 ### v2.0 變更明細
 
@@ -916,3 +938,18 @@ flowchart TD
 | 17 | 7.1 VASP 註冊資訊 | 改為由公會秘書處維護 VASP 清單，而非中央 Registry | Kordan 反應 |
 | 18 | 7.3 Rate Limiting | Rate Limit 數值改為 TBD，待公會秘書處統計各業者需求後確認 | 會議共識 |
 | 19 | 7.4 資料保留 | 新增 Nonce 記錄保留 24 小時的要求 | Lido 建議（配合 Nonce 機制） |
+
+### v2.1 變更明細
+
+> 來源：第三次技術會議（2026-03-26），參考提案一、二、四
+
+| # | Section | 變更內容 | 來源 |
+|---|---------|---------|------|
+| 1 | 4.1 Person | `physical_address` 由單一加密字串改為結構化物件 `{country, city}`（加密後傳送）；金額 ≥ 30,000 TWD 等值時為必填 | 提案 1-1 |
+| 2 | 4.1 Person | `date_of_birth` 格式放寬，接受 `YYYY` / `YYYY-MM` / `YYYY-MM-DD` 三種格式 | 提案 1-2 |
+| 3 | 4.1 Person | `identification.type` 新增 `lei`、`tax_id`、`business_registration`；法人優先順序：lei > tax_id > business_registration | 提案 1-4 |
+| 4 | 3.3 POST /transfer | `originator.physical_address` 與 `beneficiary.physical_address` 改為結構化物件；新增 identification.type 子欄位說明 | 提案 1-1, 1-4 |
+| 5 | 7.3 Rate Limiting | 所有端點 Rate Limit 數值定案（取代 TBD）：`/address/verify` 200 RPM、`/transfer` 60 RPM、`PATCH /transfers/{id}` 30 RPM、`GET /transfers/{id}` 60 RPM、`/vasp/info` 10 RPM | 提案 2 |
+| 6 | 7.3 Rate Limiting | 新增實作要點：`Retry-After` header、per-VASP 計算、建議 sliding window 或 token bucket | 提案 2 |
+| 7 | 3.1 GET /vasp/info | 新增 `config_version`（整數遞增）與 `config_updated_at`（ISO 8601）欄位 | 提案 4 |
+| 8 | 5.3 錯誤代碼 | `RATE_LIMITED` 錯誤說明補充 `Retry-After` header 要求 | 提案 2 |
