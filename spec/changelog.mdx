@@ -46,6 +46,7 @@ icon: "clock-rotate-left"
 | 2 | 資料模型 Person | `date_of_birth` 格式放寬，接受 `YYYY` / `YYYY-MM` / `YYYY-MM-DD` 三種格式 | 提案 1-2 |
 | 3 | 資料模型 Person | `identification.type` 新增 `lei`（Legal Entity Identifier）、`tax_id`（統一編號）、`business_registration`（公司登記字號）；法人優先順序：lei > tax_id > business_registration | 提案 1-4 |
 | 4 | POST /transfer | `originator.physical_address` 與 `beneficiary.physical_address` 改為結構化物件；新增 identification.type 子欄位說明 | 提案 1-1, 1-4 |
+| 9 | 資料模型 Person / POST /transfer | `account_id` 與 `address` 由必填改為條件式必填（至少提供其一），允許以帳戶編碼替代區塊鏈地址 | MaiCoin 提議，自律規範對齊 |
 | 5 | Rate Limiting | 所有端點 Rate Limit 數值定案：`/address/verify` 200 RPM、`/transfer` 60 RPM、`PATCH /transfers/{id}` 30 RPM、`GET /transfers/{id}` 60 RPM、`/vasp/info` 10 RPM | 提案 2 |
 | 6 | Rate Limiting | 新增實作要點：`Retry-After` header、per-VASP（依 `X-VASP-ID`）計算、建議 sliding window 或 token bucket | 提案 2 |
 | 7 | GET /vasp/info | 新增 `config_version`（整數遞增）與 `config_updated_at`（ISO 8601）欄位，用於偵測 VASP 資訊變更 | 提案 4 |

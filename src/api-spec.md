@@ -391,8 +391,8 @@ X-Nonce: {unique_random_string_32_chars}
 | originator | object | Y | 發起人資訊 |
 | originator.originator_type | string | Y | natural_person / legal_person |
 | originator.name | string | Y | 姓名（加密） |
-| originator.account_id | string | Y | 在發起方 VASP 的帳戶 ID |
-| originator.address | string | Y | 發起人的區塊鏈地址 |
+| originator.account_id | string | Cond. | **[v2.1 變更]** 在發起方 VASP 的帳戶編碼；與 `address` 至少提供其一 |
+| originator.address | string | Cond. | **[v2.1 變更]** 發起人的區塊鏈地址；與 `account_id` 至少提供其一 |
 | originator.identification | object | Y | 身分證明文件 |
 | originator.identification.type | string | Y | **[v2.1 擴充]** national_id / passport / company_registration / lei / tax_id / business_registration |
 | originator.date_of_birth | string | N | **[v2.1 變更]** 出生日期（加密），接受 YYYY / YYYY-MM / YYYY-MM-DD 格式 |
@@ -403,7 +403,7 @@ X-Nonce: {unique_random_string_32_chars}
 | beneficiary | object | Y | 受益人資訊 |
 | beneficiary.beneficiary_type | string | Y | natural_person / legal_person |
 | beneficiary.name | string | N | 姓名（加密，如發起人提供） |
-| beneficiary.address | string | Y | 受益人的區塊鏈地址 |
+| beneficiary.address | string | Cond. | **[v2.1 變更]** 受益人的區塊鏈地址；與 `beneficiary.account_id` 至少提供其一 |
 | beneficiary.memo | string | N | **[v2.0 新增]** 受益人地址對應的 Memo / Destination Tag |
 | beneficiary.physical_address | object | N | **[v2.1 新增]** 受益人實體地址（結構化物件，加密後傳送）；金額 ≥ 30,000 TWD 等值時為必填 |
 | beneficiary.physical_address.country | string | Cond. | ISO 3166-1 alpha-2 國家碼 |
@@ -602,8 +602,8 @@ X-Nonce: {unique_random_string_32_chars}
 {
   "type": "natural_person | legal_person",
   "name": "string (encrypted)",
-  "account_id": "string",
-  "address": "string (blockchain address)",
+  "account_id": "string (at least one of account_id or address required)",
+  "address": "string (blockchain address, at least one of account_id or address required)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
     "type": "national_id | passport | company_registration | lei | tax_id | business_registration",
@@ -618,6 +618,18 @@ X-Nonce: {unique_random_string_32_chars}
   }
 }
 ```
+
+#### account_id / address 條件式必填 [v2.1 新增]
+
+`account_id`（帳戶編碼）與 `address`（區塊鏈地址）**至少須提供其一**：
+
+| 情境 | account_id | address | 說明 |
+|------|-----------|---------|------|
+| 用戶有獨立鏈上地址 | 可選 | 必填 | 一般情況 |
+| 從水庫地址（omnibus address）發送 | 必填 | 可選 | 帳戶編碼與用戶 1:1 對應 |
+| 兩者皆有 | 必填 | 必填 | 最佳實務 |
+
+> **背景**：交易所在處理客戶虛擬資產發送時，可能從水庫地址（omnibus/pool address）發送，而非分配給發起人獨一無二的區塊鏈地址。經公會秘書處與主管機關確認，自律規範允許以帳戶編碼替代區塊鏈地址，因帳戶編碼與用戶為 1:1 對應。此做法亦與國際慣例一致（歐盟 TFR、新加坡 PSN02 皆採 account number or blockchain address）。
 
 ### 4.2 VASP
 
@@ -953,3 +965,4 @@ flowchart TD
 | 6 | 7.3 Rate Limiting | 新增實作要點：`Retry-After` header、per-VASP 計算、建議 sliding window 或 token bucket | 提案 2 |
 | 7 | 3.1 GET /vasp/info | 新增 `config_version`（整數遞增）與 `config_updated_at`（ISO 8601）欄位 | 提案 4 |
 | 8 | 5.3 錯誤代碼 | `RATE_LIMITED` 錯誤說明補充 `Retry-After` header 要求 | 提案 2 |
+| 9 | 4.1 Person / 3.3 POST /transfer | `account_id` 與 `address` 由必填改為條件式必填（至少提供其一），允許以帳戶編碼替代區塊鏈地址 | MaiCoin 提議，自律規範對齊 |

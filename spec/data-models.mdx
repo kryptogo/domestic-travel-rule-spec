@@ -10,8 +10,8 @@ icon: "database"
 {
   "type": "natural_person | legal_person",
   "name": "string (encrypted)",
-  "account_id": "string",
-  "address": "string (blockchain address)",
+  "account_id": "string (at least one of account_id or address required)",
+  "address": "string (blockchain address, at least one of account_id or address required)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
     "type": "national_id | passport | company_registration | lei | tax_id | business_registration",
@@ -68,6 +68,20 @@ icon: "database"
 
 `city` 欄位的標準化用詞（如 `"New Taipei City"` vs `"新北市"`）待確認，將參考 ISO 3166-2:TW 或其他標準。
 </Warning>
+
+### account_id / address 條件式必填 [v2.1 新增]
+
+`account_id`（帳戶編碼）與 `address`（區塊鏈地址）**至少須提供其一**：
+
+| 情境 | account_id | address | 說明 |
+|------|-----------|---------|------|
+| 用戶有獨立鏈上地址 | 可選 | 必填 | 一般情況 |
+| 從水庫地址（omnibus address）發送 | 必填 | 可選 | 帳戶編碼與用戶 1:1 對應 |
+| 兩者皆有 | 必填 | 必填 | 最佳實務 |
+
+<Note>
+**背景**：交易所在處理客戶虛擬資產發送時，可能從水庫地址（omnibus/pool address）發送，而非分配給發起人獨一無二的區塊鏈地址。經公會秘書處與主管機關確認，自律規範允許以帳戶編碼替代區塊鏈地址，因帳戶編碼與用戶為 1:1 對應。此做法亦與國際慣例一致（歐盟 TFR、新加坡 PSN02 皆採 account number or blockchain address）。
+</Note>
 
 ## VASP
 
