@@ -13,10 +13,11 @@ icon: "circle-check"
 ```json
 {
   "status": "accepted",
-  "beneficiary": {
-    "account_id": "user_67890",
-    "name": "{encrypted}",
-    "verified": true
+  "private_info": {
+    "encrypted_key": "string",
+    "iv": "string",
+    "auth_tag": "string",
+    "ciphertext": "string"
   },
   "confirmed_at": "2024-01-21T10:05:00Z"
 }
@@ -39,10 +40,11 @@ icon: "circle-check"
 | 欄位 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | status | string | Y | accepted / rejected |
-| beneficiary | object | N | 受益人確認資訊（accepted 時） |
-| beneficiary.account_id | string | N | 受益人在該 VASP 的帳戶 ID |
-| beneficiary.name | string | N | 受益人姓名（加密） |
-| beneficiary.verified | boolean | N | 是否已完成 KYC 驗證 |
+| private_info | object | Y | **[v2.1 新增]**  敏感資料的加密資訊 |
+| private_info.encrypted_key | string | Y | **[v2.1 新增]**  受益方需用發起方的 RSA 公鑰加密後的 AES Key |
+| private_info.auth_tag | string | Y | **[v2.1 新增]** 資料驗證標籤 |
+| private_info.iv | string | Y | **[v2.1 新增]** 初始向量 |
+| private_info.ciphertext | string | N | **[v2.1 新增]** AES 加密後的受益人資訊，內文由 confirm beneficiary model 組成 |
 | confirmed_at | string | N | 確認時間 |
 | reject_code | string | N | 拒絕代碼（rejected 時） |
 | reject_reason | string | N | 拒絕原因說明 |

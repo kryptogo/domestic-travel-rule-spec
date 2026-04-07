@@ -1,25 +1,50 @@
 ---
 title: "資料模型"
-description: "Person、VASP、Transaction 資料結構與支援的區塊鏈網路"
+description: "Originator、Beneficiary、VASP、Transaction 資料結構與支援的區塊鏈網路"
 icon: "database"
 ---
 
-## Person（自然人/法人）
+## Originator（發起人：自然人/法人）
 
 ```json
+originator:
 {
   "type": "natural_person | legal_person",
-  "name": "string (encrypted)",
+  "name": "string",
   "account_id": "string (at least one of account_id or address required)",
   "address": "string (blockchain address, at least one of account_id or address required)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
     "type": "national_id | passport | company_registration | lei | tax_id | business_registration",
-    "number": "string (encrypted)",
+    "number": "string",
     "country": "string (ISO 3166-1 alpha-2)"
   },
-  "date_of_birth": "string (encrypted, YYYY or YYYY-MM or YYYY-MM-DD)",
-  "place_of_birth": "string (encrypted)",
+  "date_of_birth": "string (YYYY or YYYY-MM or YYYY-MM-DD)",
+  "place_of_birth": "string",
+  "physical_address": {
+    "country": "string (ISO 3166-1 alpha-2, e.g. TW)",
+    "city": "string (city name)"
+  }
+}
+```
+
+## Beneficiary（受益人：自然人/法人）
+
+```json
+beneficiary:
+{
+  "type": "natural_person | legal_person",
+  "name": "string",
+  "account_id": "string (at least one of account_id or address required)",
+  "address": "string (blockchain address, at least one of account_id or address required)",
+  "memo": "string (Memo/Tag, if applicable)",
+  "identification": {
+    "type": "national_id | passport | company_registration | lei | tax_id | business_registration",
+    "number": "string",
+    "country": "string (ISO 3166-1 alpha-2)"
+  },
+  "date_of_birth": "string (YYYY or YYYY-MM or YYYY-MM-DD)",
+  "place_of_birth": "string",
   "physical_address": {
     "country": "string (ISO 3166-1 alpha-2, e.g. TW)",
     "city": "string (city name)"
@@ -82,6 +107,17 @@ icon: "database"
 <Note>
 **背景**：交易所在處理客戶虛擬資產發送時，可能從水庫地址（omnibus/pool address）發送，而非分配給發起人獨一無二的區塊鏈地址。經公會秘書處與主管機關確認，自律規範允許以帳戶編碼替代區塊鏈地址，因帳戶編碼與用戶為 1:1 對應。此做法亦與國際慣例一致（歐盟 TFR、新加坡 PSN02 皆採 account number or blockchain address）。
 </Note>
+
+## Confirm Beneficiary（確認後回傳之受益人資訊）
+
+```json
+confirm_beneficiary:
+{
+ "account_id": "string",
+ "name": "string",
+ "verified": "Boolean"
+}
+```
 
 ## VASP
 

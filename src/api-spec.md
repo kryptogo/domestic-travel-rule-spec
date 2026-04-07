@@ -87,9 +87,13 @@ body_hash = SHA256(request_body)
 
 發起人/受益人的個人資訊（PII）應使用接收方 VASP 的公鑰進行加密：
 
-- **加密演算法**：RSA-OAEP 或 ECIES
-- **加密欄位**：originator.name、beneficiary.name 等 PII 欄位
+- **加密演算法**：RSA-OAEP
+- **加密欄位**：包含 originator 與 beneficiary 的 object 物件
 
+> **[v2.1 新增] 加密演算法統一規範與流程**
+>
+> 1. 統一採用 RSA-OAEP
+> 2. 允許 RSA-2048 跟 RSA-4096 ，但建議採用 RSA-4096，避免 RSA-2048 在 2030 年左右強度不足的問題
 #### 金鑰輪換機制
 
 > **[v2.0 新增] VASP 間金鑰輪換流程**
@@ -216,7 +220,7 @@ X-Nonce: {unique_random_string_32_chars}
 | 欄位 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | kid | string | Y | 金鑰唯一識別碼（Key ID） |
-| algorithm | string | Y | 加密演算法（RSA-2048, ECIES 等） |
+| algorithm | string | Y | 加密演算法（RSA-2048, RSA-4096） |
 | key | string | Y | 公鑰內容（PEM 格式） |
 | status | string | Y | 金鑰狀態：`active` / `rotating` / `revoked` |
 | created_at | string | Y | 金鑰建立時間（ISO 8601） |
@@ -338,26 +342,11 @@ X-Nonce: {unique_random_string_32_chars}
     "memo": null,
     "originated_at": "2024-01-21T10:00:00Z"
   },
-  "originator": {
-    "originator_type": "natural_person",
-    "name": "{encrypted}",
-    "account_id": "user_12345",
-    "address": "0xOriginator...",
-    "identification": {
-      "type": "national_id",
-      "number": "{encrypted}",
-      "country": "TW"
-    },
-    "date_of_birth": "{encrypted}",
-    "place_of_birth": "{encrypted}",
-    "physical_address": "{encrypted}"
-  },
-  "beneficiary": {
-    "beneficiary_type": "natural_person",
-    "name": "{encrypted}",
-    "address": "0xBeneficiary...",
-    "memo": null,
-    "account_id": null
+  "private_info": {
+    "encrypted_key": "string",
+    "iv": "string",
+    "auth_tag": "string",
+    "ciphertext": "string"
   },
   "originating_vasp": {
     "vasp_id": "VASP_A",
@@ -375,6 +364,37 @@ X-Nonce: {unique_random_string_32_chars}
 }
 ```
 
+#### private_info 組成流程
+```
+plain_data = {
+ originator: {...},
+ beneficiary: {...}
+}
+
+aes_key = GenerateRandomBytes(32)
+iv = GenerateRandomBytes(12)
+ciphertext, auth_tag = AES-256-GCM-Encrypt(
+  key: aes_key,
+  iv: iv,
+  plaintext: plain_data
+)
+
+encrypted_key = RSA-Encrypt(
+  public_key: receiver_public_key,
+  padding: PKCS1_OAEP_PADDING,
+  hash_algorithm: SHA-256,
+  mgf1_algorithm: SHA-256,
+  message: aes_key
+)
+
+private_info = { 
+ "encrypted_key": encrypted_key, 
+ "iv": iv, 
+ "auth_tag": auth_tag,
+ "ciphertext":  ciphertext
+}
+```
+
 **Request Fields**
 
 | 欄位 | 類型 | 必填 | 說明 |
@@ -388,26 +408,11 @@ X-Nonce: {unique_random_string_32_chars}
 | transaction.amount_usd | string | N | 等值美元金額 |
 | transaction.memo | string | N | **[v2.0 新增]** Memo / Destination Tag |
 | transaction.originated_at | string | Y | 交易發起時間 |
-| originator | object | Y | 發起人資訊 |
-| originator.originator_type | string | Y | natural_person / legal_person |
-| originator.name | string | Y | 姓名（加密） |
-| originator.account_id | string | Cond. | **[v2.1 變更]** 在發起方 VASP 的帳戶編碼；與 `address` 至少提供其一 |
-| originator.address | string | Cond. | **[v2.1 變更]** 發起人的區塊鏈地址；與 `account_id` 至少提供其一 |
-| originator.identification | object | Y | 身分證明文件 |
-| originator.identification.type | string | Y | **[v2.1 擴充]** national_id / passport / company_registration / lei / tax_id / business_registration |
-| originator.date_of_birth | string | N | **[v2.1 變更]** 出生日期（加密），接受 YYYY / YYYY-MM / YYYY-MM-DD 格式 |
-| originator.place_of_birth | string | N | 出生地（加密） |
-| originator.physical_address | object | N | **[v2.1 變更]** 實體地址（結構化物件，加密後傳送）；金額 ≥ 30,000 TWD 等值時為必填 |
-| originator.physical_address.country | string | Cond. | ISO 3166-1 alpha-2 國家碼 |
-| originator.physical_address.city | string | Cond. | 城鎮名稱 |
-| beneficiary | object | Y | 受益人資訊 |
-| beneficiary.beneficiary_type | string | Y | natural_person / legal_person |
-| beneficiary.name | string | N | 姓名（加密，如發起人提供） |
-| beneficiary.address | string | Cond. | **[v2.1 變更]** 受益人的區塊鏈地址；與 `beneficiary.account_id` 至少提供其一 |
-| beneficiary.memo | string | N | **[v2.0 新增]** 受益人地址對應的 Memo / Destination Tag |
-| beneficiary.physical_address | object | N | **[v2.1 新增]** 受益人實體地址（結構化物件，加密後傳送）；金額 ≥ 30,000 TWD 等值時為必填 |
-| beneficiary.physical_address.country | string | Cond. | ISO 3166-1 alpha-2 國家碼 |
-| beneficiary.physical_address.city | string | Cond. | 城鎮名稱 |
+| private_info | object | Y | **[v2.1 新增]**  敏感資料的加密資訊 |
+| private_info.encrypted_key | string | Y | **[v2.1 新增]**  發起方需用受益方的 RSA 公鑰加密後的 AES Key |
+| private_info.auth_tag | string | Y | **[v2.1 新增]** 資料驗證標籤 |
+| private_info.iv | string | Y | **[v2.1 新增]** 初始向量 |
+| private_info.ciphertext | string | Y | **[v2.1 新增]** AES 加密後的發起人與受益人資訊，內文由 originator 與 beneficiary model 組成 |
 | originating_vasp | object | Y | 發起方 VASP 資訊 |
 | beneficiary_vasp | object | Y | 受益方 VASP 資訊 |
 | encryption | object | N | **[v2.0 新增]** 加密資訊 |
@@ -448,10 +453,11 @@ X-Nonce: {unique_random_string_32_chars}
 ```json
 {
   "status": "accepted",
-  "beneficiary": {
-    "account_id": "user_67890",
-    "name": "{encrypted}",
-    "verified": true
+  "private_info": {
+    "encrypted_key": "string",
+    "iv": "string",
+    "auth_tag": "string",
+    "ciphertext": "string"
   },
   "confirmed_at": "2024-01-21T10:05:00Z"
 }
@@ -473,10 +479,11 @@ X-Nonce: {unique_random_string_32_chars}
 | 欄位 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | status | string | Y | accepted / rejected |
-| beneficiary | object | N | 受益人確認資訊（accepted 時） |
-| beneficiary.account_id | string | N | 受益人在該 VASP 的帳戶 ID |
-| beneficiary.name | string | N | 受益人姓名（加密） |
-| beneficiary.verified | boolean | N | 是否已完成 KYC 驗證 |
+| private_info | object | Y | **[v2.1 新增]**  敏感資料的加密資訊 |
+| private_info.encrypted_key | string | Y | **[v2.1 新增]**  受益方需用發起方的 RSA 公鑰加密後的 AES Key |
+| private_info.auth_tag | string | Y | **[v2.1 新增]** 資料驗證標籤 |
+| private_info.iv | string | Y | **[v2.1 新增]** 初始向量 |
+| private_info.ciphertext | string | N | **[v2.1 新增]** AES 加密後的受益人資訊，內文由 confirm beneficiary model 組成 |
 | confirmed_at | string | N | 確認時間 |
 | reject_code | string | N | 拒絕代碼（rejected 時） |
 | reject_reason | string | N | 拒絕原因說明 |
