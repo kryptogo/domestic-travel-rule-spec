@@ -20,26 +20,11 @@ icon: "paper-plane"
     "memo": null,
     "originated_at": "2024-01-21T10:00:00Z"
   },
-  "originator": {
-    "originator_type": "natural_person",
-    "name": "{encrypted}",
-    "account_id": "user_12345",
-    "address": "0xOriginator...",
-    "identification": {
-      "type": "national_id",
-      "number": "{encrypted}",
-      "country": "TW"
-    },
-    "date_of_birth": "{encrypted}",
-    "place_of_birth": "{encrypted}",
-    "physical_address": "{encrypted}"
-  },
-  "beneficiary": {
-    "beneficiary_type": "natural_person",
-    "name": "{encrypted}",
-    "address": "0xBeneficiary...",
-    "memo": null,
-    "account_id": null
+  "private_info": {
+    "encrypted_key": "string",
+    "iv": "string",
+    "auth_tag": "string",
+    "ciphertext": "string"
   },
   "originating_vasp": {
     "vasp_id": "VASP_A",
@@ -57,6 +42,37 @@ icon: "paper-plane"
 }
 ```
 
+#### private_info 組成流程
+```
+plain_data = {
+ originator: {...},
+ beneficiary: {...}
+}
+
+aes_key = GenerateRandomBytes(32)
+iv = GenerateRandomBytes(12)
+ciphertext, auth_tag = AES-256-GCM-Encrypt(
+  key: aes_key,
+  iv: iv,
+  plaintext: plain_data
+)
+
+encrypted_key = RSA-Encrypt(
+  public_key: receiver_public_key,
+  padding: PKCS1_OAEP_PADDING,
+  hash_algorithm: SHA-256,
+  mgf1_algorithm: SHA-256,
+  message: aes_key
+)
+
+private_info = {
+ "encrypted_key": encrypted_key,
+ "iv": iv,
+ "auth_tag": auth_tag,
+ "ciphertext":  ciphertext
+}
+```
+
 ### Request Fields
 
 | 欄位 | 類型 | 必填 | 說明 |
@@ -70,26 +86,11 @@ icon: "paper-plane"
 | transaction.amount_usd | string | N | 等值美元金額 |
 | transaction.memo | string | N | **[v2.0 新增]** Memo / Destination Tag |
 | transaction.originated_at | string | Y | 交易發起時間 |
-| originator | object | Y | 發起人資訊 |
-| originator.originator_type | string | Y | natural_person / legal_person |
-| originator.name | string | Y | 姓名（加密） |
-| originator.account_id | string | Cond. | **[v2.1 變更]** 在發起方 VASP 的帳戶編碼；與 `address` 至少提供其一 |
-| originator.address | string | Cond. | **[v2.1 變更]** 發起人的區塊鏈地址；與 `account_id` 至少提供其一 |
-| originator.identification | object | Y | 身分證明文件 |
-| originator.identification.type | string | Y | **[v2.1 擴充]** national_id / passport / company_registration / lei / tax_id / business_registration |
-| originator.date_of_birth | string | N | **[v2.1 變更]** 出生日期（加密），接受 YYYY / YYYY-MM / YYYY-MM-DD 格式 |
-| originator.place_of_birth | string | N | 出生地（加密） |
-| originator.physical_address | object | N | **[v2.1 變更]** 實體地址（結構化物件，加密後傳送）；金額 ≥ 30,000 TWD 等值時為必填 |
-| originator.physical_address.country | string | Cond. | ISO 3166-1 alpha-2 國家碼 |
-| originator.physical_address.city | string | Cond. | 城鎮名稱 |
-| beneficiary | object | Y | 受益人資訊 |
-| beneficiary.beneficiary_type | string | Y | natural_person / legal_person |
-| beneficiary.name | string | N | 姓名（加密，如發起人提供） |
-| beneficiary.address | string | Cond. | **[v2.1 變更]** 受益人的區塊鏈地址；與 `beneficiary.account_id` 至少提供其一 |
-| beneficiary.memo | string | N | **[v2.0 新增]** 受益人地址對應的 Memo / Destination Tag |
-| beneficiary.physical_address | object | N | **[v2.1 新增]** 受益人實體地址（結構化物件，加密後傳送）；金額 ≥ 30,000 TWD 等值時為必填 |
-| beneficiary.physical_address.country | string | Cond. | ISO 3166-1 alpha-2 國家碼 |
-| beneficiary.physical_address.city | string | Cond. | 城鎮名稱 |
+| private_info | object | Y | **[v2.1 新增]**  敏感資料的加密資訊 |
+| private_info.encrypted_key | string | Y | **[v2.1 新增]**  發起方需用受益方的 RSA 公鑰加密後的 AES Key |
+| private_info.auth_tag | string | Y | **[v2.1 新增]** 資料驗證標籤 |
+| private_info.iv | string | Y | **[v2.1 新增]** 初始向量 |
+| private_info.ciphertext | string | Y | **[v2.1 新增]** AES 加密後的發起人與受益人資訊，內文由 originator 與 beneficiary model 組成 |
 | originating_vasp | object | Y | 發起方 VASP 資訊 |
 | beneficiary_vasp | object | Y | 受益方 VASP 資訊 |
 | encryption | object | N | **[v2.0 新增]** 加密資訊 |
