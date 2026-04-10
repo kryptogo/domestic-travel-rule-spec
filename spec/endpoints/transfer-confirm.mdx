@@ -39,16 +39,26 @@ icon: "circle-check"
 
 | 欄位 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| status | string | Y | accepted / rejected |
-| private_info | object | Y | **[v2.1 新增]**  敏感資料的加密資訊 |
-| private_info.encrypted_key | string | Y | **[v2.1 新增]**  受益方需用發起方的 RSA 公鑰加密後的 AES Key |
-| private_info.auth_tag | string | Y | **[v2.1 新增]** 資料驗證標籤 |
-| private_info.iv | string | Y | **[v2.1 新增]** 初始向量 |
-| private_info.ciphertext | string | N | **[v2.1 新增]** AES 加密後的受益人資訊，內文由 confirm beneficiary model 組成 |
-| confirmed_at | string | N | 確認時間 |
-| reject_code | string | N | 拒絕代碼（rejected 時） |
-| reject_reason | string | N | 拒絕原因說明 |
-| rejected_at | string | N | 拒絕時間 |
+| status | string | Y | `accepted` / `rejected` |
+| private_info | object | **條件必填** | **[v2.1 新增]** 敏感資料的加密資訊（`status=accepted` 時必填） |
+| private_info.encrypted_key | string | **條件必填** | **[v2.1 新增]** 受益方需用發起方的 RSA 公鑰加密後的 AES Key（`status=accepted` 時必填） |
+| private_info.iv | string | **條件必填** | **[v2.1 新增]** 初始向量（`status=accepted` 時必填） |
+| private_info.auth_tag | string | **條件必填** | **[v2.1 新增]** 資料驗證標籤（`status=accepted` 時必填） |
+| private_info.ciphertext | string | **條件必填** | **[v2.1 新增]** AES 加密後的受益人資訊，內文由 Confirm Beneficiary model 組成（`status=accepted` 時必填） |
+| confirmed_at | string | **條件必填** | 確認時間（`status=accepted` 時必填） |
+| reject_code | string | **條件必填** | 拒絕代碼（`status=rejected` 時必填） |
+| reject_reason | string | N | 拒絕原因說明（建議填寫） |
+| rejected_at | string | **條件必填** | 拒絕時間（`status=rejected` 時必填） |
+
+<Note>
+**關於 `private_info.ciphertext` 必填性**
+
+在 v2.1 之前，受益人確認資訊於 request body 中為 optional。自 v2.1 起引入 RSA + AES 加密機制後，受益人資訊改以 `private_info.ciphertext` 加密傳輸。
+
+由於 confirm API 的核心用途為「受益方 VASP 將已驗證之受益人資訊安全回傳給發起方」，因此當 `status=accepted` 時，`private_info` 及其所有子欄位（包含 `ciphertext`）皆為**必填**。若 `ciphertext` 為空，代表發起方無法取得受益人驗證結果，違反 Travel Rule 的雙向資訊揭露原則。
+
+當 `status=rejected` 時，`private_info` 不需要提供，改以 `reject_code` 與 `rejected_at` 說明拒絕原因。
+</Note>
 
 ## Reject Codes
 
