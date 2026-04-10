@@ -53,6 +53,6 @@ icon: "triangle-exclamation"
 | NONCE_EXPIRED | 400 | **[v2.0 新增]** Nonce 已超過有效時間窗口 |
 | KEY_EXPIRED | 400 | **[v2.0 新增]** 使用的加密金鑰已過期 |
 | VALIDATION_ERROR | 422 | 資料驗證失敗 |
-| RATE_LIMITED | 429 | 超過請求限制 |
+| RATE_LIMITED | 429 | 超過請求限制（Response Header 須包含 `Retry-After` 秒數） |
 | INTERNAL_ERROR | 500 | 內部錯誤 |
 | SERVICE_UNAVAILABLE | 503 | 服務暫停 |

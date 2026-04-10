@@ -64,8 +64,10 @@ X-Nonce: {unique_random_string_32_chars}
     "address_verify": "https://api.vasp-b.com/travel-rule/v1/address/verify",
     "transfer": "https://api.vasp-b.com/travel-rule/v1/transfer"
   },
-  "api_version": "1.0",
-  "status": "active"
+  "api_version": "2.1",
+  "status": "active",
+  "config_version": 3,
+  "config_updated_at": "2026-03-26T10:00:00Z"
 }
 ```
 
@@ -84,6 +86,8 @@ X-Nonce: {unique_random_string_32_chars}
 | endpoints | object | Y | API 端點 URL |
 | api_version | string | Y | 支援的 API 版本 |
 | status | string | Y | 狀態：active / maintenance / inactive |
+| config_version | integer | Y | **[v2.1 新增]** 設定檔版本號（遞增），用於偵測 VASP 資訊是否有變更 |
+| config_updated_at | string | Y | **[v2.1 新增]** 設定檔最後更新時間（ISO 8601） |
 
 ## Public Keys 欄位 [v2.0 新增]
 

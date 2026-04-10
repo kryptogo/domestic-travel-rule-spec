@@ -10,19 +10,78 @@ icon: "database"
 {
   "type": "natural_person | legal_person",
   "name": "string (encrypted)",
-  "account_id": "string",
-  "address": "string (blockchain address)",
+  "account_id": "string (at least one of account_id or address required)",
+  "address": "string (blockchain address, at least one of account_id or address required)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "national_id | passport | company_registration",
+    "type": "national_id | passport | company_registration | lei | tax_id | business_registration",
     "number": "string (encrypted)",
     "country": "string (ISO 3166-1 alpha-2)"
   },
-  "date_of_birth": "string (encrypted, YYYY-MM-DD)",
+  "date_of_birth": "string (encrypted, YYYY or YYYY-MM or YYYY-MM-DD)",
   "place_of_birth": "string (encrypted)",
-  "physical_address": "string (encrypted)"
+  "physical_address": {
+    "country": "string (ISO 3166-1 alpha-2, e.g. TW)",
+    "city": "string (city name)"
+  }
 }
 ```
+
+### Identification Types
+
+| Type | 說明 | 優先順序 |
+|------|------|----------|
+| national_id | 身分證字號 | - |
+| passport | 護照號碼 | - |
+| company_registration | 公司登記字號 | 3 |
+| lei | **[v2.1 新增]** Legal Entity Identifier（法人識別碼） | 1（最優先） |
+| tax_id | **[v2.1 新增]** 統一編號 | 2 |
+| business_registration | **[v2.1 新增]** 公司登記字號 | 3 |
+
+<Note>
+法人 identification type 優先順序：`lei` > `tax_id` > `business_registration`。若有 LEI 碼應優先使用。
+</Note>
+
+### date_of_birth 格式 [v2.1 變更]
+
+`date_of_birth` 欄位允許以下三種格式（至少須提供年份）：
+
+| 格式 | 範例 | 說明 |
+|------|------|------|
+| `YYYY` | `"1990"` | 至少須提供 |
+| `YYYY-MM` | `"1990-05"` | best effort |
+| `YYYY-MM-DD` | `"1990-05-15"` | 完整日期 |
+
+驗證用正規表達式：`^\d{4}(-\d{2}(-\d{2})?)?$`
+
+### physical_address 結構 [v2.1 變更]
+
+`physical_address` 由原本的單一加密字串，改為結構化物件（加密後傳送）：
+
+| 欄位 | 類型 | 說明 |
+|------|------|------|
+| country | string | ISO 3166-1 alpha-2 國家碼（如 `"TW"`） |
+| city | string | 城鎮名稱 |
+
+<Warning>
+當交易金額等值 ≥ 30,000 TWD 時，`physical_address` 為**必填**欄位；其餘情況為 optional。
+
+`city` 欄位的標準化用詞（如 `"New Taipei City"` vs `"新北市"`）待確認，將參考 ISO 3166-2:TW 或其他標準。
+</Warning>
+
+### account_id / address 條件式必填 [v2.1 新增]
+
+`account_id`（帳戶編碼）與 `address`（區塊鏈地址）**至少須提供其一**：
+
+| 情境 | account_id | address | 說明 |
+|------|-----------|---------|------|
+| 用戶有獨立鏈上地址 | 可選 | 必填 | 一般情況 |
+| 從水庫地址（omnibus address）發送 | 必填 | 可選 | 帳戶編碼與用戶 1:1 對應 |
+| 兩者皆有 | 必填 | 必填 | 最佳實務 |
+
+<Note>
+**背景**：交易所在處理客戶虛擬資產發送時，可能從水庫地址（omnibus/pool address）發送，而非分配給發起人獨一無二的區塊鏈地址。經公會秘書處與主管機關確認，自律規範允許以帳戶編碼替代區塊鏈地址，因帳戶編碼與用戶為 1:1 對應。此做法亦與國際慣例一致（歐盟 TFR、新加坡 PSN02 皆採 account number or blockchain address）。
+</Note>
 
 ## VASP
 
