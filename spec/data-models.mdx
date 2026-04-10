@@ -15,7 +15,7 @@ originator:
   "address": "string (blockchain address, at least one of account_id or address required)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "national_id | passport | company_registration | lei | tax_id | business_registration",
+    "type": "national_id | passport | lei | tax_id | business_registration",
     "number": "string",
     "country": "string (ISO 3166-1 alpha-2)"
   },
@@ -39,7 +39,7 @@ beneficiary:
   "address": "string (blockchain address, at least one of account_id or address required)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "national_id | passport | company_registration | lei | tax_id | business_registration",
+    "type": "national_id | passport | lei | tax_id | business_registration",
     "number": "string",
     "country": "string (ISO 3166-1 alpha-2)"
   },
@@ -54,18 +54,21 @@ beneficiary:
 
 ### Identification Types
 
-| Type | 說明 | 優先順序 |
-|------|------|----------|
-| national_id | 身分證字號 | - |
-| passport | 護照號碼 | - |
-| company_registration | 公司登記字號 | 3 |
-| lei | **[v2.1 新增]** Legal Entity Identifier（法人識別碼） | 1（最優先） |
-| tax_id | **[v2.1 新增]** 統一編號 | 2 |
-| business_registration | **[v2.1 新增]** 公司登記字號 | 3 |
+| Type | 適用主體 | 說明 | 法人優先順序 |
+|------|---------|------|--------------|
+| national_id | 自然人 | 身分證字號 | - |
+| passport | 自然人 | 護照號碼 | - |
+| lei | 法人 | **[v2.1 新增]** Legal Entity Identifier（法人識別碼） | 1（最優先） |
+| tax_id | 法人 | **[v2.1 新增]** 統一編號 | 2 |
+| business_registration | 法人 | **[v2.1 新增]** 公司登記字號 | 3 |
 
 <Note>
-法人 identification type 優先順序：`lei` > `tax_id` > `business_registration`。若有 LEI 碼應優先使用。
+**法人 identification type 優先順序**：`lei` > `tax_id` > `business_registration`。若有 LEI 碼應優先使用。
 </Note>
+
+<Warning>
+**[v2.1 Breaking Change]** 移除舊有的 `company_registration` 類型。v2.1 起法人登記字號一律使用 `business_registration`。由於 v2.1 規格尚未有任何實作，此變更不需過渡期。
+</Warning>
 
 ### date_of_birth 格式 [v2.1 變更]
 

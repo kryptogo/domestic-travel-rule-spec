@@ -32,6 +32,7 @@
 | 1.0 | 2024-01-21 | 初版 |
 | 2.0 | 2025-02-11 | 加入 Nonce 防重放機制、公鑰過期時間、Memo/Tag 支援、移除 Registry 依賴 |
 | 2.1 | 2026-03-26 | 第三次技術會議：physical_address 結構化、date_of_birth 格式放寬、identification type 擴充、Rate Limit 定案、config versioning |
+| 2.1.1 | 2026-04-10 | RSA+AES 加密機制（`private_info`）、`/transfers/{id}/confirm` 受益人資訊改為條件必填、錯誤回應識別碼欄位釐清、**移除 `company_registration`**（breaking，由 `business_registration` 取代） |
 
 ### 1.4 術語定義
 
@@ -613,7 +614,7 @@ private_info = {
   "address": "string (blockchain address, at least one of account_id or address required)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "national_id | passport | company_registration | lei | tax_id | business_registration",
+    "type": "national_id | passport | lei | tax_id | business_registration",
     "number": "string (encrypted)",
     "country": "string (ISO 3166-1 alpha-2)"
   },
@@ -973,3 +974,19 @@ flowchart TD
 | 7 | 3.1 GET /vasp/info | 新增 `config_version`（整數遞增）與 `config_updated_at`（ISO 8601）欄位 | 提案 4 |
 | 8 | 5.3 錯誤代碼 | `RATE_LIMITED` 錯誤說明補充 `Retry-After` header 要求 | 提案 2 |
 | 9 | 4.1 Person / 3.3 POST /transfer | `account_id` 與 `address` 由必填改為條件式必填（至少提供其一），允許以帳戶編碼替代區塊鏈地址 | MaiCoin 提議，自律規範對齊 |
+
+### v2.1.1 變更明細
+
+> 來源：第三次技術會議後續討論（Slack 回饋、PR #3、PR #4，2026-04-10）
+
+| # | Section | 變更內容 | 來源 |
+|---|---------|---------|------|
+| 1 | 4.1 Person | **[Breaking]** 移除 `identification.type` 的 `company_registration`；法人登記字號一律使用 `business_registration`（原本兩者語意重疊） | PR #4 Code Review |
+| 2 | 4.x 資料模型 | 新增 `private_info` 結構（`encrypted_key` / `iv` / `auth_tag` / `ciphertext`）；受益人敏感資訊改以 RSA + AES 加密傳輸 | PR #3 (pia-pt), 第三次技術會議 |
+| 3 | 3.x POST /transfer | 新增 RSA + AES 加密 pseudo-code；`private_info` 取代明文 beneficiary 細節 | PR #3 (pia-pt) |
+| 4 | 3.x POST /transfers/{id}/confirm | `private_info` 及其子欄位（含 `ciphertext`）改為條件必填（`status=accepted` 時必填）；原 `ciphertext=N` 與父容器 `private_info=Y` 邏輯矛盾 | Slack 回饋 (MaiCoin_Pia) |
+| 5 | 5.2 錯誤回應格式 | 明確化錯誤回應中的識別碼欄位：`/address/verify` 用 `request_id`、`/transfer` 系列用 `transfer_id`（原範例統一用 `request_id` 易誤導實作方） | Kordan Review |
+
+<Warning>
+**v2.1.1 為 breaking change** — 移除 `company_registration` 類型。由於 v2.1 規格尚未有任何正式實作，不需向後相容過渡期。所有實作方請直接使用 `business_registration`。
+</Warning>
