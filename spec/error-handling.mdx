@@ -38,6 +38,40 @@ icon: "triangle-exclamation"
 }
 ```
 
+<Note>
+**關於識別碼欄位**
+
+錯誤回應中的識別碼欄位需對應該 API 所使用的冪等識別碼，而非統一使用 `request_id`：
+
+| API | 錯誤回應中的識別碼欄位 |
+|------|------------------------|
+| `POST /v1/address/verify`（地址所有權查詢） | `request_id` |
+| `POST /v1/transfer`（發送 Travel Rule 資料） | `transfer_id` |
+| `POST /v1/transfer/confirm`（確認交易） | `transfer_id` |
+| `POST /v1/transfer/update`（更新交易狀態） | `transfer_id` |
+| `GET /v1/transfer/{transfer_id}`（查詢交易狀態） | `transfer_id` |
+
+例如 `POST /v1/transfer` 發生錯誤時：
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid beneficiary information",
+    "details": [
+      {
+        "field": "beneficiary.account_number",
+        "message": "This field is required"
+      }
+    ],
+    "transfer_id": "tr_20240121_001"
+  }
+}
+```
+
+此設計讓錯誤回應可直接對應到原請求的業務識別碼，便於雙方對帳與排查。
+</Note>
+
 ## 錯誤代碼
 
 | 代碼 | HTTP | 說明 |

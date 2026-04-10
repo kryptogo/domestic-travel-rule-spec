@@ -32,6 +32,7 @@
 | 1.0 | 2024-01-21 | 初版 |
 | 2.0 | 2025-02-11 | 加入 Nonce 防重放機制、公鑰過期時間、Memo/Tag 支援、移除 Registry 依賴 |
 | 2.1 | 2026-03-26 | 第三次技術會議：physical_address 結構化、date_of_birth 格式放寬、identification type 擴充、Rate Limit 定案、config versioning |
+| 2.1.1 | 2026-04-10 | RSA+AES 加密機制（`private_info`）、`/transfers/{id}/confirm` 受益人資訊改為條件必填、錯誤回應識別碼欄位釐清、**移除 `company_registration`**（breaking，由 `business_registration` 取代） |
 
 ### 1.4 術語定義
 
@@ -87,9 +88,13 @@ body_hash = SHA256(request_body)
 
 發起人/受益人的個人資訊（PII）應使用接收方 VASP 的公鑰進行加密：
 
-- **加密演算法**：RSA-OAEP 或 ECIES
-- **加密欄位**：originator.name、beneficiary.name 等 PII 欄位
+- **加密演算法**：RSA-OAEP
+- **加密欄位**：包含 originator 與 beneficiary 的 object 物件
 
+> **[v2.1 新增] 加密演算法統一規範與流程**
+>
+> 1. 統一採用 RSA-OAEP
+> 2. 允許 RSA-2048 跟 RSA-4096 ，但建議採用 RSA-4096，避免 RSA-2048 在 2030 年左右強度不足的問題
 #### 金鑰輪換機制
 
 > **[v2.0 新增] VASP 間金鑰輪換流程**
@@ -216,7 +221,7 @@ X-Nonce: {unique_random_string_32_chars}
 | 欄位 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | kid | string | Y | 金鑰唯一識別碼（Key ID） |
-| algorithm | string | Y | 加密演算法（RSA-2048, ECIES 等） |
+| algorithm | string | Y | 加密演算法（RSA-2048, RSA-4096） |
 | key | string | Y | 公鑰內容（PEM 格式） |
 | status | string | Y | 金鑰狀態：`active` / `rotating` / `revoked` |
 | created_at | string | Y | 金鑰建立時間（ISO 8601） |
@@ -338,26 +343,11 @@ X-Nonce: {unique_random_string_32_chars}
     "memo": null,
     "originated_at": "2024-01-21T10:00:00Z"
   },
-  "originator": {
-    "originator_type": "natural_person",
-    "name": "{encrypted}",
-    "account_id": "user_12345",
-    "address": "0xOriginator...",
-    "identification": {
-      "type": "national_id",
-      "number": "{encrypted}",
-      "country": "TW"
-    },
-    "date_of_birth": "{encrypted}",
-    "place_of_birth": "{encrypted}",
-    "physical_address": "{encrypted}"
-  },
-  "beneficiary": {
-    "beneficiary_type": "natural_person",
-    "name": "{encrypted}",
-    "address": "0xBeneficiary...",
-    "memo": null,
-    "account_id": null
+  "private_info": {
+    "encrypted_key": "string",
+    "iv": "string",
+    "auth_tag": "string",
+    "ciphertext": "string"
   },
   "originating_vasp": {
     "vasp_id": "VASP_A",
@@ -375,6 +365,37 @@ X-Nonce: {unique_random_string_32_chars}
 }
 ```
 
+#### private_info 組成流程
+```
+plain_data = {
+ originator: {...},
+ beneficiary: {...}
+}
+
+aes_key = GenerateRandomBytes(32)
+iv = GenerateRandomBytes(12)
+ciphertext, auth_tag = AES-256-GCM-Encrypt(
+  key: aes_key,
+  iv: iv,
+  plaintext: plain_data
+)
+
+encrypted_key = RSA-Encrypt(
+  public_key: receiver_public_key,
+  padding: PKCS1_OAEP_PADDING,
+  hash_algorithm: SHA-256,
+  mgf1_algorithm: SHA-256,
+  message: aes_key
+)
+
+private_info = { 
+ "encrypted_key": encrypted_key, 
+ "iv": iv, 
+ "auth_tag": auth_tag,
+ "ciphertext":  ciphertext
+}
+```
+
 **Request Fields**
 
 | 欄位 | 類型 | 必填 | 說明 |
@@ -388,26 +409,11 @@ X-Nonce: {unique_random_string_32_chars}
 | transaction.amount_usd | string | N | 等值美元金額 |
 | transaction.memo | string | N | **[v2.0 新增]** Memo / Destination Tag |
 | transaction.originated_at | string | Y | 交易發起時間 |
-| originator | object | Y | 發起人資訊 |
-| originator.originator_type | string | Y | natural_person / legal_person |
-| originator.name | string | Y | 姓名（加密） |
-| originator.account_id | string | Cond. | **[v2.1 變更]** 在發起方 VASP 的帳戶編碼；與 `address` 至少提供其一 |
-| originator.address | string | Cond. | **[v2.1 變更]** 發起人的區塊鏈地址；與 `account_id` 至少提供其一 |
-| originator.identification | object | Y | 身分證明文件 |
-| originator.identification.type | string | Y | **[v2.1 擴充]** national_id / passport / company_registration / lei / tax_id / business_registration |
-| originator.date_of_birth | string | N | **[v2.1 變更]** 出生日期（加密），接受 YYYY / YYYY-MM / YYYY-MM-DD 格式 |
-| originator.place_of_birth | string | N | 出生地（加密） |
-| originator.physical_address | object | N | **[v2.1 變更]** 實體地址（結構化物件，加密後傳送）；金額 ≥ 30,000 TWD 等值時為必填 |
-| originator.physical_address.country | string | Cond. | ISO 3166-1 alpha-2 國家碼 |
-| originator.physical_address.city | string | Cond. | 城鎮名稱 |
-| beneficiary | object | Y | 受益人資訊 |
-| beneficiary.beneficiary_type | string | Y | natural_person / legal_person |
-| beneficiary.name | string | N | 姓名（加密，如發起人提供） |
-| beneficiary.address | string | Cond. | **[v2.1 變更]** 受益人的區塊鏈地址；與 `beneficiary.account_id` 至少提供其一 |
-| beneficiary.memo | string | N | **[v2.0 新增]** 受益人地址對應的 Memo / Destination Tag |
-| beneficiary.physical_address | object | N | **[v2.1 新增]** 受益人實體地址（結構化物件，加密後傳送）；金額 ≥ 30,000 TWD 等值時為必填 |
-| beneficiary.physical_address.country | string | Cond. | ISO 3166-1 alpha-2 國家碼 |
-| beneficiary.physical_address.city | string | Cond. | 城鎮名稱 |
+| private_info | object | Y | **[v2.1 新增]**  敏感資料的加密資訊 |
+| private_info.encrypted_key | string | Y | **[v2.1 新增]**  發起方需用受益方的 RSA 公鑰加密後的 AES Key |
+| private_info.auth_tag | string | Y | **[v2.1 新增]** 資料驗證標籤 |
+| private_info.iv | string | Y | **[v2.1 新增]** 初始向量 |
+| private_info.ciphertext | string | Y | **[v2.1 新增]** AES 加密後的發起人與受益人資訊，內文由 originator 與 beneficiary model 組成 |
 | originating_vasp | object | Y | 發起方 VASP 資訊 |
 | beneficiary_vasp | object | Y | 受益方 VASP 資訊 |
 | encryption | object | N | **[v2.0 新增]** 加密資訊 |
@@ -448,10 +454,11 @@ X-Nonce: {unique_random_string_32_chars}
 ```json
 {
   "status": "accepted",
-  "beneficiary": {
-    "account_id": "user_67890",
-    "name": "{encrypted}",
-    "verified": true
+  "private_info": {
+    "encrypted_key": "string",
+    "iv": "string",
+    "auth_tag": "string",
+    "ciphertext": "string"
   },
   "confirmed_at": "2024-01-21T10:05:00Z"
 }
@@ -473,10 +480,11 @@ X-Nonce: {unique_random_string_32_chars}
 | 欄位 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | status | string | Y | accepted / rejected |
-| beneficiary | object | N | 受益人確認資訊（accepted 時） |
-| beneficiary.account_id | string | N | 受益人在該 VASP 的帳戶 ID |
-| beneficiary.name | string | N | 受益人姓名（加密） |
-| beneficiary.verified | boolean | N | 是否已完成 KYC 驗證 |
+| private_info | object | Y | **[v2.1 新增]**  敏感資料的加密資訊 |
+| private_info.encrypted_key | string | Y | **[v2.1 新增]**  受益方需用發起方的 RSA 公鑰加密後的 AES Key |
+| private_info.auth_tag | string | Y | **[v2.1 新增]** 資料驗證標籤 |
+| private_info.iv | string | Y | **[v2.1 新增]** 初始向量 |
+| private_info.ciphertext | string | N | **[v2.1 新增]** AES 加密後的受益人資訊，內文由 confirm beneficiary model 組成 |
 | confirmed_at | string | N | 確認時間 |
 | reject_code | string | N | 拒絕代碼（rejected 時） |
 | reject_reason | string | N | 拒絕原因說明 |
@@ -606,7 +614,7 @@ X-Nonce: {unique_random_string_32_chars}
   "address": "string (blockchain address, at least one of account_id or address required)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "national_id | passport | company_registration | lei | tax_id | business_registration",
+    "type": "national_id | passport | lei | tax_id | business_registration",
     "number": "string (encrypted)",
     "country": "string (ISO 3166-1 alpha-2)"
   },
@@ -966,3 +974,19 @@ flowchart TD
 | 7 | 3.1 GET /vasp/info | 新增 `config_version`（整數遞增）與 `config_updated_at`（ISO 8601）欄位 | 提案 4 |
 | 8 | 5.3 錯誤代碼 | `RATE_LIMITED` 錯誤說明補充 `Retry-After` header 要求 | 提案 2 |
 | 9 | 4.1 Person / 3.3 POST /transfer | `account_id` 與 `address` 由必填改為條件式必填（至少提供其一），允許以帳戶編碼替代區塊鏈地址 | MaiCoin 提議，自律規範對齊 |
+
+### v2.1.1 變更明細
+
+> 來源：第三次技術會議後續討論（Slack 回饋、PR #3、PR #4，2026-04-10）
+
+| # | Section | 變更內容 | 來源 |
+|---|---------|---------|------|
+| 1 | 4.1 Person | **[Breaking]** 移除 `identification.type` 的 `company_registration`；法人登記字號一律使用 `business_registration`（原本兩者語意重疊） | PR #4 Code Review |
+| 2 | 4.x 資料模型 | 新增 `private_info` 結構（`encrypted_key` / `iv` / `auth_tag` / `ciphertext`）；受益人敏感資訊改以 RSA + AES 加密傳輸 | PR #3 (pia-pt), 第三次技術會議 |
+| 3 | 3.x POST /transfer | 新增 RSA + AES 加密 pseudo-code；`private_info` 取代明文 beneficiary 細節 | PR #3 (pia-pt) |
+| 4 | 3.x POST /transfers/{id}/confirm | `private_info` 及其子欄位（含 `ciphertext`）改為條件必填（`status=accepted` 時必填）；原 `ciphertext=N` 與父容器 `private_info=Y` 邏輯矛盾 | Slack 回饋 (MaiCoin_Pia) |
+| 5 | 5.2 錯誤回應格式 | 明確化錯誤回應中的識別碼欄位：`/address/verify` 用 `request_id`、`/transfer` 系列用 `transfer_id`（原範例統一用 `request_id` 易誤導實作方） | Kordan Review |
+
+<Warning>
+**v2.1.1 為 breaking change** — 移除 `company_registration` 類型。由於 v2.1 規格尚未有任何正式實作，不需向後相容過渡期。所有實作方請直接使用 `business_registration`。
+</Warning>
