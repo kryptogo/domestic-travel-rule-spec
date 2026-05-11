@@ -93,8 +93,8 @@ private_info = {
 | private_info.ciphertext | string | Y | **[v2.1 新增]** AES 加密後的發起人與受益人資訊，內文由 originator 與 beneficiary model 組成 |
 | originating_vasp | object | Y | 發起方 VASP 資訊 |
 | beneficiary_vasp | object | Y | 受益方 VASP 資訊 |
-| encryption | object | N | **[v2.0 新增]** 加密資訊 |
-| encryption.kid | string | N | **[v2.0 新增]** 加密使用的金鑰 ID，對應 public_keys[].kid |
+| encryption | object | Y | **[v2.1.1 變更]** Envelope 加密相關 metadata（v2.1.1 起為必填，因 envelope 解密需依此判斷 RSA private key） |
+| encryption.kid | string | Y | **[v2.1.1 變更]** 用於解開 `private_info.encrypted_key` 的接收方 RSA 公鑰 ID，對應 `GET /vasp/info` 回傳之 `public_keys[].kid`。沿用 v2.0 欄位名稱，但語意改為 envelope key wrap 用 |
 | callback_url | string | N | 狀態更新回呼 URL |
 | expires_at | string | Y | 請求過期時間 |
 

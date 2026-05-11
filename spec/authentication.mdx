@@ -46,10 +46,17 @@ body_hash = SHA256(request_body)
 
 ## 敏感資料加密
 
-發起人/受益人的個人資訊（PII）應使用接收方 VASP 的公鑰進行加密：
+發起人 / 受益人的個人資訊（PII）採用 **Hybrid Encryption（RSA-OAEP + AES-256-GCM）** 整包加密為 `private_info` envelope 傳輸，而非逐欄位加密。詳細欄位定義與 pseudo-code 請參見 [POST /transfer](/spec/endpoints/transfer) 與 [資料模型](/spec/data-models)。
 
-- **加密演算法**：RSA-OAEP 或 ECIES
-- **加密欄位**：originator.name、beneficiary.name 等 PII 欄位
+- **金鑰封裝（Key Wrap）演算法**：RSA-OAEP（SHA-256 hash + MGF1-SHA-256），用於加密每筆訊息隨機產生的 AES key
+- **內容加密（Content Encryption）演算法**：AES-256-GCM（96-bit IV、128-bit auth tag）
+- **加密範圍**：包含 `originator` 與 `beneficiary` 完整物件（含 name、identification、date_of_birth、place_of_birth、physical_address 等所有 PII 欄位）
+
+<Note>
+**[v2.1.1 變更]** 由 v2.0 / v2.1 的「逐欄位 RSA-OAEP 加密」改為「整包 RSA + AES Hybrid Encryption」。動機：(1) RSA-OAEP 有明文長度上限（RSA-2048 約 190 bytes、RSA-4096 約 446 bytes），無法容納結構化 `physical_address` 與未來欄位擴充；(2) AES-256-GCM 對大塊資料效能遠優於 RSA；(3) GCM 的 auth tag 提供 envelope 級完整性驗證。
+
+**[v2.1.1 演算法收斂]** 移除 ECIES 選項，統一採用 RSA-OAEP。允許 RSA-2048 與 RSA-4096，**建議使用 RSA-4096**，避免 RSA-2048 在 2030 年左右強度不足。
+</Note>
 
 ### 金鑰輪換機制
 

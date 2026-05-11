@@ -84,7 +84,7 @@ beneficiary:
 
 ### physical_address 結構 [v2.1 變更]
 
-`physical_address` 由原本的單一加密字串，改為結構化物件（加密後傳送）：
+`physical_address` 由原本的單一字串改為結構化物件（與其他 PII 欄位一同透過外層 `private_info` envelope 加密傳輸）：
 
 | 欄位 | 類型 | 說明 |
 |------|------|------|

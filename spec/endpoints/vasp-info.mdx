@@ -94,7 +94,7 @@ X-Nonce: {unique_random_string_32_chars}
 | 欄位 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | kid | string | Y | 金鑰唯一識別碼（Key ID） |
-| algorithm | string | Y | 加密演算法（RSA-2048, ECIES 等） |
+| algorithm | string | Y | **[v2.1.1 變更]** 加密演算法（`RSA-2048` / `RSA-4096`，建議 `RSA-4096`；v2.0/v2.1 之 ECIES 選項已移除） |
 | key | string | Y | 公鑰內容（PEM 格式） |
 | status | string | Y | 金鑰狀態：`active` / `rotating` / `revoked` |
 | created_at | string | Y | 金鑰建立時間（ISO 8601） |

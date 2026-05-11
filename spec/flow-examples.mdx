@@ -33,7 +33,7 @@ User A          VASP A                 VASP B ~ N               Blockchain
   │               │ 5. 回傳 VASP 資訊 & 公鑰                      │
   │               │<──────────────────────│                        │
   │               │                       │                        │
-  │               │ 6. POST /transfer (加密的 TR 資料)             │
+  │               │ 6. POST /transfer (private_info envelope)      │
   │               │──────────────────────>│                        │
   │               │                       │                        │
   │               │ 7. 回傳 pending       │                        │
@@ -81,7 +81,7 @@ sequenceDiagram
     OV->>BV: GET /vasp/info
     BV-->>OV: 回傳 VASP 資訊 & 公鑰
 
-    OV->>BV: POST /transfer<br/>(加密的 TR 資料)
+    OV->>BV: POST /transfer<br/>(private_info envelope)
     BV-->>OV: 回傳 status: pending
 
     Note over BV: 驗證受益人帳戶
