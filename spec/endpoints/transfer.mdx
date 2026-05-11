@@ -42,34 +42,54 @@ icon: "paper-plane"
 }
 ```
 
+<Note>
+**關於 `private_info.ciphertext` 解密後內容**
+
+`POST /transfer` 的 `private_info.ciphertext` 解密後為一個 JSON 物件，包含 `Originator` 與 `Beneficiary` 兩個欄位（完整 schema 見 [資料模型](/spec/data-models)）：
+
+```json
+{
+  "originator":  { /* Originator model — 完整欄位見 data-models */ },
+  "beneficiary": { /* Beneficiary model — 完整欄位見 data-models */ }
+}
+```
+
+**Serialization**：plaintext 在送入 AES-256-GCM 前須 **UTF-8 encode 後傳入**（建議使用 RFC 8259 標準 JSON，欄位順序不影響 GCM 加解密，但建議 sender 維持 schema 定義順序便於 debug）。
+</Note>
+
 #### private_info 組成流程
+
 ```
 plain_data = {
- originator: {...},
- beneficiary: {...}
+  "originator":  Originator object,
+  "beneficiary": Beneficiary object
 }
+plaintext = utf8(JSON.stringify(plain_data))
 
-aes_key = GenerateRandomBytes(32)
-iv = GenerateRandomBytes(12)
+aes_key = GenerateRandomBytes(32)        // 256-bit AES key, fresh per message
+iv      = GenerateRandomBytes(12)        // 96-bit IV, MUST be unique per aes_key
+
 ciphertext, auth_tag = AES-256-GCM-Encrypt(
   key: aes_key,
   iv: iv,
-  plaintext: plain_data
+  plaintext: plaintext
 )
+// auth_tag 固定 16 bytes (128-bit)
 
 encrypted_key = RSA-Encrypt(
-  public_key: receiver_public_key,
+  public_key: receiver_public_key,       // 來自 GET /vasp/info 的 active key，kid 寫進 encryption.kid
   padding: PKCS1_OAEP_PADDING,
   hash_algorithm: SHA-256,
   mgf1_algorithm: SHA-256,
   message: aes_key
 )
 
+// 所有 bytes 以 base64 編碼後填入 envelope
 private_info = {
- "encrypted_key": encrypted_key,
- "iv": iv,
- "auth_tag": auth_tag,
- "ciphertext":  ciphertext
+  "encrypted_key": base64(encrypted_key),
+  "iv":            base64(iv),
+  "auth_tag":      base64(auth_tag),
+  "ciphertext":    base64(ciphertext)
 }
 ```
 

@@ -22,6 +22,27 @@ icon: "circle-check"
   "confirmed_at": "2024-01-21T10:05:00Z"
 }
 ```
+
+<Note>
+**關於 `private_info.ciphertext` 解密後內容**
+
+`POST /transfers/{id}/confirm` 的 `private_info.ciphertext` 解密後為 `Confirm Beneficiary` model（完整定義見 [資料模型](/spec/data-models)）：
+
+```json
+{
+  "account_id": "user_67890",
+  "name":       "張小明",
+  "verified":   true
+}
+```
+
+**加密方向反轉**：與 `POST /transfer` 不同，此處 envelope 由**受益方 VASP** 加密、**發起方 VASP** 解密。因此：
+- `encrypted_key` 用**發起方** VASP 的 RSA 公鑰封裝 AES key（與原 `POST /transfer` 中使用的公鑰不同方向）
+- 對應 `encryption.kid` 為**發起方**公鑰的 kid（透過 `GET /vasp/info` 取得）
+
+**Serialization**：plaintext 在送入 AES-256-GCM 前須 **UTF-8 encode 後傳入**；所有 envelope bytes（`encrypted_key` / `iv` / `auth_tag` / `ciphertext`）以 base64 編碼。詳細 pseudo-code 請參見 [POST /transfer](/spec/endpoints/transfer) 的 `private_info 組成流程`（演算法相同，僅 RSA 公鑰來自發起方而非受益方）。
+</Note>
+
   </Tab>
   <Tab title="拒絕">
 ```json

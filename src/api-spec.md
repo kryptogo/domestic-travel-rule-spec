@@ -367,35 +367,52 @@ X-Nonce: {unique_random_string_32_chars}
 }
 ```
 
+> **關於 `private_info.ciphertext` 解密後內容**
+>
+> `POST /v1/transfer` 的 `private_info.ciphertext` 解密後為一個 JSON 物件，包含 `Originator` 與 `Beneficiary` 兩個欄位：
+>
+> ```json
+> {
+>   "originator":  { /* Originator model — 完整欄位見 §4.1 */ },
+>   "beneficiary": { /* Beneficiary model — 完整欄位見 §4.1 */ }
+> }
+> ```
+>
+> **Serialization**：plaintext 在送入 AES-256-GCM 前須 **UTF-8 encode 後傳入**（建議使用 RFC 8259 標準 JSON，欄位順序不影響 GCM 加解密，但建議 sender 維持 schema 定義順序便於 debug）。
+
 #### private_info 組成流程
 
 ```
 plain_data = {
- originator: {...},
- beneficiary: {...}
+  "originator":  Originator object,
+  "beneficiary": Beneficiary object
 }
+plaintext = utf8(JSON.stringify(plain_data))
 
-aes_key = GenerateRandomBytes(32)
-iv = GenerateRandomBytes(12)
+aes_key = GenerateRandomBytes(32)        // 256-bit AES key, fresh per message
+iv      = GenerateRandomBytes(12)        // 96-bit IV, MUST be unique per aes_key
+
 ciphertext, auth_tag = AES-256-GCM-Encrypt(
   key: aes_key,
   iv: iv,
-  plaintext: plain_data
+  plaintext: plaintext
 )
+// auth_tag 固定 16 bytes (128-bit)
 
 encrypted_key = RSA-Encrypt(
-  public_key: receiver_public_key,
+  public_key: receiver_public_key,       // 來自 GET /vasp/info 的 active key，kid 寫進 encryption.kid
   padding: PKCS1_OAEP_PADDING,
   hash_algorithm: SHA-256,
   mgf1_algorithm: SHA-256,
   message: aes_key
 )
 
-private_info = { 
- "encrypted_key": encrypted_key, 
- "iv": iv, 
- "auth_tag": auth_tag,
- "ciphertext":  ciphertext
+// 所有 bytes 以 base64 編碼後填入 envelope
+private_info = {
+  "encrypted_key": base64(encrypted_key),
+  "iv":            base64(iv),
+  "auth_tag":      base64(auth_tag),
+  "ciphertext":    base64(ciphertext)
 }
 ```
 
@@ -467,6 +484,25 @@ private_info = {
 }
 ```
 
+> **關於 `private_info.ciphertext` 解密後內容**
+>
+> `POST /v1/transfer/confirm` 的 `private_info.ciphertext` 解密後為 `Confirm Beneficiary` model（定義見 §4.1）：
+>
+> ```json
+> {
+>   "account_id": "user_67890",
+>   "name":       "張小明",
+>   "verified":   true
+> }
+> ```
+>
+> **加密方向反轉**：與 `POST /v1/transfer` 不同，此處 envelope 由**受益方 VASP** 加密、**發起方 VASP** 解密。因此：
+>
+> - `encrypted_key` 用**發起方** VASP 的 RSA 公鑰封裝 AES key（與原 `POST /v1/transfer` 中使用的公鑰不同方向）
+> - 對應 `encryption.kid` 為**發起方**公鑰的 kid（透過 `GET /v1/vasp/info` 取得）
+>
+> **Serialization**：plaintext 在送入 AES-256-GCM 前須 **UTF-8 encode 後傳入**；所有 envelope bytes（`encrypted_key` / `iv` / `auth_tag` / `ciphertext`）以 base64 編碼。詳細演算法相同於 §3.3 POST /v1/transfer 的 `private_info 組成流程`（僅 RSA 公鑰來自發起方而非受益方）。
+
 **Request - 拒絕**
 
 ```json
@@ -487,7 +523,7 @@ private_info = {
 | private_info.encrypted_key | string | **條件必填** | **[v2.1 新增]** 受益方需用發起方的 RSA 公鑰加密後的 AES Key（`status=accepted` 時必填） |
 | private_info.iv | string | **條件必填** | **[v2.1 新增]** 初始向量（`status=accepted` 時必填） |
 | private_info.auth_tag | string | **條件必填** | **[v2.1 新增]** 資料驗證標籤（`status=accepted` 時必填） |
-| private_info.ciphertext | string | **條件必填** | **[v2.1 新增]** AES 加密後的受益人資訊，內文由 [Confirm Beneficiary](#41-originator--beneficiary自然人法人) model 組成（`status=accepted` 時必填） |
+| private_info.ciphertext | string | **條件必填** | **[v2.1 新增]** AES 加密後的受益人資訊，內文由 `Confirm Beneficiary` model 組成（見 §4.1，`status=accepted` 時必填） |
 | confirmed_at | string | **條件必填** | 確認時間（`status=accepted` 時必填） |
 | reject_code | string | **條件必填** | 拒絕代碼（`status=rejected` 時必填） |
 | reject_reason | string | N | 拒絕原因說明（建議填寫） |
@@ -617,7 +653,7 @@ private_info = {
 
 ### 4.1 Originator / Beneficiary（自然人/法人）
 
-> **[v2.1.1 變更]** 原 `Person` 物件依語意拆分為 `Originator`（發起人）與 `Beneficiary`（受益人）。兩者 schema 結構相同，但語意差異：發起方 VASP 對 originator 擁有完整 KYC 資料，對 beneficiary 通常僅有部分資訊（多數欄位非必填）。整包透過 [`private_info` envelope](#34-post-v1transfer) 進行 RSA + AES 加密傳輸，欄位本身不再標 `(encrypted)`。
+> **[v2.1.1 變更]** 原 `Person` 物件依語意拆分為 `Originator`（發起人）與 `Beneficiary`（受益人）。兩者 schema 結構相同，但語意差異：發起方 VASP 對 originator 擁有完整 KYC 資料，對 beneficiary 通常僅有部分資訊（多數欄位非必填）。整包透過 `private_info` envelope（見 §3.3）進行 RSA + AES 加密傳輸，欄位本身不再標 `(encrypted)`。
 
 #### Originator（發起人）
 
