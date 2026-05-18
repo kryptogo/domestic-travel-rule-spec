@@ -97,7 +97,7 @@ private_info = {
 
 | 欄位 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| transfer_id | string | Y | 唯一交易識別碼 |
+| transfer_id | string | Y | 唯一交易識別碼（**[v2.2]** 由發起方 VASP 自訂，長度上限 36 字元，見下方命名規則） |
 | transaction | object | Y | 交易資訊 |
 | transaction.tx_hash | string | N | 鏈上交易 hash（可後補） |
 | transaction.network | string | Y | 區塊鏈網路 |
@@ -116,7 +116,43 @@ private_info = {
 | encryption | object | Y | **[v2.1.1 變更]** Envelope 加密相關 metadata（v2.1.1 起為必填，因 envelope 解密需依此判斷 RSA private key） |
 | encryption.kid | string | Y | **[v2.1.1 變更]** 用於解開 `private_info.encrypted_key` 的接收方 RSA 公鑰 ID，對應 `GET /vasp/info` 回傳之 `public_keys[].kid`。沿用 v2.0 欄位名稱，但語意改為 envelope key wrap 用 |
 | callback_url | string | N | 狀態更新回呼 URL |
-| expires_at | string | Y | 請求過期時間 |
+| expires_at | string | Y | 請求過期時間（受益方 confirm 回覆期限，見下方生命週期說明） |
+
+## transfer_id 命名規則 [v2.2 變更]
+
+<Note>
+**第四次技術會議決議（提案 7）**
+
+`transfer_id` 由**發起方 VASP 自行定義**，不再強制採用 `tr_{yyyyMMDD}_{流水號}` 格式（流水號在跨 VASP 並發時易碰撞）。
+
+- **長度上限 36 字元**（與 UUID 等長）
+- 在發起方 VASP 範圍內唯一即可；因 API 請求 Header 已帶 `X-VASP-ID`，故 `(X-VASP-ID, transfer_id)` 組合即為全域唯一
+- **建議**採用 UUID 或 ULID 等隨機識別碼（不可預測、含時間序）；範例：`tr_01HV5K8XYZP3QRT4ABCD1234EF`
+</Note>
+
+## expires_at 生命週期 [v2.2 新增]
+
+<Note>
+**第四次技術會議決議（提案 10、11）**
+
+**適用範圍**（`expires_at` 具效力）：
+- `POST /transfer` 接收當下的檢查點——若收到時已過期，受益方可拒絕該請求（回 `INVALID_REQUEST`）
+- 受益方 **confirm 回覆期限**——受益方須於 `expires_at` 前回覆 `accepted` / `rejected`
+
+**不適用範圍**（`expires_at` 不再具效力）：
+- transfer 已進入 `accepted` 後的 `PATCH /transfers/{id}`（以鏈上交易為準）
+- 鏈上交易已廣播後的資料補正
+
+**過期處理**：
+- 當 `expires_at` 已過且狀態仍為 `pending`，受益方**可主動**將該筆紀錄標記為 `expired` 並終結流程
+- 一旦狀態已為 `accepted`，受益方**不得**單方面將其 expire
+- **廣播優先原則**：只要發起方在 `expires_at` 前已執行鏈上簽名廣播，即便受益方收到 `PATCH` 更新時已過期，仍應視為有效入帳（鏈上為最終真實狀態）
+
+**過期時間長度（confirm 回覆期限）**：
+- 規格**預設 24 小時**
+- 允許發起方於 `expires_at` 自訂，但有效範圍為 **1～72 小時**
+- 超過 72 小時，接收方可拒收並回 `INVALID_REQUEST`
+</Note>
 
 ## Response
 

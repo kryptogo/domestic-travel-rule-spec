@@ -64,7 +64,7 @@ X-Nonce: {unique_random_string_32_chars}
     "address_verify": "https://api.vasp-b.com/travel-rule/v1/address/verify",
     "transfer": "https://api.vasp-b.com/travel-rule/v1/transfer"
   },
-  "api_version": "2.1",
+  "api_version": "2.2",
   "status": "active",
   "config_version": 3,
   "config_updated_at": "2026-03-26T10:00:00Z"
@@ -89,6 +89,25 @@ X-Nonce: {unique_random_string_32_chars}
 | config_version | integer | Y | **[v2.1 新增]** 設定檔版本號（遞增），用於偵測 VASP 資訊是否有變更 |
 | config_updated_at | string | Y | **[v2.1 新增]** 設定檔最後更新時間（ISO 8601） |
 
+## vasp_id 命名規則 [v2.2 新增]
+
+<Note>
+**第四次技術會議決議（提案 1）**
+
+為消除各家 `vasp_id` 呈現方式不一致（空格、大小寫差異）造成的比對與 Header 處理問題，統一規範如下：
+
+- 格式：**全小寫 snake_case**，僅允許 ASCII 小寫字母、數字與底線
+- 正規表達式：`^[a-z0-9_]{3,32}$`
+- **不允許**空格、大寫字母、連字號（`-`）或其他符號
+- 由**公會秘書處統一分配**，確保全網唯一、不重名
+
+| 呈現方式（修正前） | 規範值（修正後） |
+|------|------|
+| `HOYA BIT`（含空格） | `hoyabit` |
+| `Maicoin`（首字大寫） | `maicoin` |
+| `kryptogo`（已符合） | `kryptogo` |
+</Note>
+
 ## Public Keys 欄位 [v2.0 新增]
 
 | 欄位 | 類型 | 必填 | 說明 |
@@ -105,6 +124,12 @@ X-Nonce: {unique_random_string_32_chars}
 - `rotating`：即將淘汰的舊金鑰，仍可用於解密但不應再用於加密新訊息
 - `revoked`：已撤銷的金鑰，不可使用
 
+<Note>
+**[v2.2 新增] revoked 金鑰保留期限（提案 3）**
+
+`revoked` 金鑰應於 `public_keys` 陣列中保留**至少 90 天**後方可移除，避免清單隨輪換無限膨脹；接收方 VASP 應於本地保存對應 private key **至少 5 年**以解密歷史 envelope。詳見[認證與安全](/spec/authentication)。
+</Note>
+
 ## Registered Services 欄位
 
 | 欄位 | 類型 | 必填 | 說明 |
@@ -112,6 +137,12 @@ X-Nonce: {unique_random_string_32_chars}
 | service_type | string | Y | 業務類型：exchange / transfer / custody |
 | registered | boolean | Y | 是否已註冊該業務 |
 | license_number | string | N | 許可證字號 |
+
+<Note>
+**[v2.2 釐清] license_number 欄位處置（提案 2）**
+
+台灣目前尚無正式的 VASP 許可證字號制度（VASP 專法尚未上路）。第四次技術會議決議：`license_number` **維持 optional**，現階段**可留空**，保留供未來制度上路後擴充使用。實作方不應因該欄位為空而拒絕請求。
+</Note>
 
 ## Service Types 業務類型
 

@@ -1,0 +1,63 @@
+---
+title: "POST /transfers/{id}/amend"
+description: "資料回補機制：發起方補正已拒絕交易的發起人/受益人資訊"
+icon: "rotate"
+---
+
+發起方 VASP 對已被拒絕的 transfer 補正（回補）發起人/受益人資訊，並重新進入確認流程。
+
+<Note>
+**[v2.2 新增] 資料回補機制（提案 14）**
+
+第四次技術會議決議新增此端點。依現行自律規範，境內交易於對方未完成確認時可進行資料回補（補正）；境外交易所則無回補問題。
+
+本端點供發起方在收到 `rejected` 後，修正 PII 並重送，避免整筆交易作廢重開。
+</Note>
+
+## Request
+
+```json
+{
+  "private_info": {
+    "encrypted_key": "string",
+    "iv": "string",
+    "auth_tag": "string",
+    "ciphertext": "string"
+  },
+  "encryption": {
+    "kid": "key-2024-001"
+  },
+  "amendment_reason": "name_correction",
+  "amended_at": "2024-01-21T11:00:00Z"
+}
+```
+
+### Request Fields
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| private_info | object | Y | 重新加密後的發起人/受益人資訊 envelope（結構同 [POST /transfer](/spec/endpoints/transfer)） |
+| encryption | object | Y | Envelope 加密 metadata |
+| encryption.kid | string | Y | 接收方 RSA 公鑰 ID |
+| amendment_reason | string | Y | 補正原因。列舉：`name_correction` / `address_correction` / `id_correction` / `other` |
+| amended_at | string | Y | 補正時間（ISO 8601） |
+
+## 補正限制條件
+
+<Warning>
+依現行《防制洗錢及打擊資恐注意事項自律規範》，境內交易於對方未完成確認時**可進行資料回補**；惟完整法源條文號待補註確認。以下補正條件與期限為建議值，待與自律規範條文對齊後定稿：
+
+- 僅當 transfer 狀態為 `rejected`、且 `reject_code ∈ { BENEFICIARY_NAME_MISMATCH, INVALID_DATA }` 時可補正
+- 補正期限：自原 transfer 建立後 **3 個工作日**內
+- 補正成功後，transfer 重新進入一輪 confirm 流程（狀態回到 `pending`）
+</Warning>
+
+## Response
+
+```json
+{
+  "transfer_id": "tr_20240121_001",
+  "status": "pending",
+  "updated_at": "2024-01-21T11:00:05Z"
+}
+```

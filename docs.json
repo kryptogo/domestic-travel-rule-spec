@@ -29,6 +29,7 @@
               "spec/endpoints/transfer-confirm",
               "spec/endpoints/transfer-status",
               "spec/endpoints/transfer-update",
+              "spec/endpoints/transfer-amend",
               "spec/endpoints/health"
             ]
           },

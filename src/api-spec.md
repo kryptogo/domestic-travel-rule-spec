@@ -33,6 +33,7 @@
 | 2.0 | 2025-02-11 | 加入 Nonce 防重放機制、公鑰過期時間、Memo/Tag 支援、移除 Registry 依賴 |
 | 2.1 | 2026-03-26 | 第三次技術會議：physical_address 結構化、date_of_birth 格式放寬、identification type 擴充、Rate Limit 定案、config versioning |
 | 2.1.1 | 2026-04-10 | RSA+AES 加密機制（`private_info`）、`/transfers/{id}/confirm` 受益人資訊改為條件必填、錯誤回應識別碼欄位釐清、**移除 `company_registration`**（breaking，由 `business_registration` 取代） |
+| 2.2 | 2026-05-11 | 第四次技術會議：vasp_id 命名規則、地址暫存與例外情境、transfer_id 格式、expires_at 生命週期、廣播失敗同步、vout 欄位、資料回補端點、shared_secret 共享機制 |
 
 ### 1.4 術語定義
 
@@ -84,6 +85,19 @@ body_hash = SHA256(request_body)
 
 > **[v2.0 變更]** 簽章計算中新增 `{nonce}` 欄位，確保 Nonce 與簽章綁定，防止攻擊者替換 Nonce 後重送請求。
 
+#### shared_secret 共享機制
+
+> **[v2.2 新增] 第四次技術會議決議（提案 15）**
+>
+> `shared_secret` 用於 HMAC-SHA256 簽章計算。由於 mTLS 已於 v2.2 自規格移除，`shared_secret` 為目前**唯一的 VASP 身分認證機制**。
+>
+> **Phase 1 共享方式**：由**公會秘書處統一產生並分發**。
+>
+> - 秘書處為每一對互通的 VASP 產生獨立的 `shared_secret`（pairwise），避免單一密鑰外洩波及全網
+> - 透過安全管道（如 PGP 加密郵件、面對面）交付
+> - **輪換頻率**：建議每年輪換一次；懷疑外洩時應立即向秘書處申請重新分發
+> - `shared_secret` 屬高敏感憑證，不得以明文存入程式碼或版本控制
+
 ### 2.3 敏感資料加密
 
 發起人/受益人的個人資訊（PII）應使用接收方 VASP 的公鑰進行加密：
@@ -108,6 +122,15 @@ body_hash = SHA256(request_body)
 > 4. 金鑰輪換期間，VASP 可同時保留新舊公鑰（舊鑰 status 設為 `rotating`，新鑰 status 設為 `active`），確保轉換期間不影響服務
 >
 > **注意**：此為第一階段簡易做法。後續版本應規劃更完善的金鑰管理機制（如集中式金鑰目錄或憑證機制），避免持續依賴手動傳遞公鑰。
+
+#### revoked 金鑰保留期限
+
+> **[v2.2 新增] 第四次技術會議決議（提案 3）**
+>
+> 為避免 `public_keys` 清單隨輪換無限膨脹：
+>
+> - **對外公開**：`revoked` 金鑰應於 `GET /vasp/info` 的 `public_keys` 陣列保留**至少 90 天**，供對方辨識歷史訊息所用金鑰；超過 90 天後可移除
+> - **內部保存**：接收方 VASP 應於本地保存對應 RSA private key **至少 5 年**，以解密資料保留期間內的歷史 `private_info` envelope
 
 ### 2.4 IP 白名單
 
@@ -192,7 +215,7 @@ X-Nonce: {unique_random_string_32_chars}
     "address_verify": "https://api.vasp-b.com/travel-rule/v1/address/verify",
     "transfer": "https://api.vasp-b.com/travel-rule/v1/transfer"
   },
-  "api_version": "2.1",
+  "api_version": "2.2",
   "status": "active",
   "config_version": 3,
   "config_updated_at": "2026-03-26T10:00:00Z"
@@ -217,6 +240,16 @@ X-Nonce: {unique_random_string_32_chars}
 | config_version | integer | Y | **[v2.1 新增]** 設定檔版本號（遞增），用於偵測 VASP 資訊是否有變更 |
 | config_updated_at | string | Y | **[v2.1 新增]** 設定檔最後更新時間（ISO 8601） |
 
+> **[v2.2 新增] vasp_id 命名規則（提案 1）**
+>
+> 統一規範各家 `vasp_id` 呈現方式，消除空格與大小寫差異：
+>
+> - 格式：**全小寫 snake_case**，僅允許 ASCII 小寫字母、數字與底線
+> - 正規表達式：`^[a-z0-9_]{3,32}$`
+> - **不允許**空格、大寫字母、連字號或其他符號
+> - 由**公會秘書處統一分配**，確保全網唯一不重名
+> - 範例修正：`HOYA BIT` → `hoyabit`、`Maicoin` → `maicoin`、`kryptogo` 維持不變
+
 **Public Keys 欄位** **[v2.0 新增]**
 
 | 欄位 | 類型 | 必填 | 說明 |
@@ -233,6 +266,8 @@ X-Nonce: {unique_random_string_32_chars}
 > - `active`：目前使用中的金鑰，其他 VASP 應使用此金鑰加密
 > - `rotating`：即將淘汰的舊金鑰，仍可用於解密但不應再用於加密新訊息
 > - `revoked`：已撤銷的金鑰，不可使用
+>
+> **[v2.2 新增]** `revoked` 金鑰應於 `public_keys` 陣列保留**至少 90 天**後方可移除；接收方應於本地保存對應 private key **至少 5 年**（見 §2.3）。
 
 **Registered Services 欄位**
 
@@ -241,6 +276,10 @@ X-Nonce: {unique_random_string_32_chars}
 | service_type | string | Y | 業務類型：exchange / transfer / custody |
 | registered | boolean | Y | 是否已註冊該業務 |
 | license_number | string | N | 許可證字號 |
+
+> **[v2.2 釐清] license_number 欄位處置（提案 2）**
+>
+> 台灣目前尚無正式的 VASP 許可證字號制度。第四次技術會議決議：`license_number` **維持 optional**，現階段**可留空**，保留供未來制度上路後擴充。實作方不應因該欄位為空而拒絕請求。
 
 **Service Types 業務類型說明**
 
@@ -324,6 +363,31 @@ X-Nonce: {unique_random_string_32_chars}
 | address | string | Y | 查詢的地址 |
 | memo | string | N | **[v2.0 新增]** 對應的 Memo / Destination Tag |
 | verified_at | string | Y | 查詢時間（ISO 8601） |
+
+#### 驗證結果暫存機制 **[v2.2 新增]**
+
+> **第四次技術會議決議（提案 4）**
+>
+> 發起方成功驗證接收方地址（`owned=true`）後，**可暫存驗證結果**以減少重複查詢：
+>
+> - **暫存有效期（TTL）**：規格統一暫定 **30 天**
+> - **強制失效條件**：發起方定期呼叫 `GET /vasp/info` 時，若偵測到受益方 `config_version` 遞增（代表設定變更，例如**錢包地址重新配發**），應**立即作廢**該 VASP 相關的所有地址暫存
+> - 各 VASP 可依自身實作與風險判斷調整 TTL；規格層級先統一規定 30 天
+
+#### 廣播查詢之例外情境處理 **[v2.2 新增]**
+
+> **第四次技術會議決議（新增提案 5，提案人：拓荒數碼）**
+>
+> **不得將「timeout 即放行」訂為共同標準。** 若允許「逾時無回覆即視為非境內同業地址並放行」成為標準做法，業者只要消極維運、放任 endpoint timeout 即可實質規避境內 Travel Rule 確認義務，使機制形同架空。
+>
+> **A. 對方 VASP timeout / 無回應**
+> - 各 VASP **有義務確保自身 endpoint 的可用性、健康度與即時監控**，並訂有維運補救措施
+> - 當 `GET /health` 回 `healthy` 時，其餘 API 結果**必須於常規時間內返回**（常規回應時間之業界建議值見 §3.7）
+> - 業者實作發生問題應**第一時間向公會反應**
+> - 對方離線時的後續處理由各家依內控自行設計（不強制一致）。法遵建議：對持續無回覆者每日定時重試；若結果不一致或始終無結果，應**調整客戶風險等級或要求補正**
+>
+> **B. 多家 VASP 對同一 address / memo 均回 `owned=true`**
+> - 屬異常情境。此情境已於 LINE 群組討論，**處理方式留待各家 VASP 依內控政策自行處理**，規格不強制統一做法
 
 ### 3.3 發送 Travel Rule 資料
 
@@ -420,7 +484,7 @@ private_info = {
 
 | 欄位 | 類型 | 必填 | 說明 |
 |------|------|------|------|
-| transfer_id | string | Y | 唯一交易識別碼 |
+| transfer_id | string | Y | 唯一交易識別碼（**[v2.2]** 由發起方 VASP 自訂，長度上限 36 字元） |
 | transaction | object | Y | 交易資訊 |
 | transaction.tx_hash | string | N | 鏈上交易 hash（可後補） |
 | transaction.network | string | Y | 區塊鏈網路 |
@@ -439,7 +503,32 @@ private_info = {
 | encryption | object | Y | **[v2.1.1 變更]** Envelope 加密相關 metadata（v2.1.1 起為必填，因 envelope 解密需依此判斷 RSA private key） |
 | encryption.kid | string | Y | **[v2.1.1 變更]** 用於解開 `private_info.encrypted_key` 的接收方 RSA 公鑰 ID，對應 `GET /vasp/info` 回傳之 `public_keys[].kid`。沿用 v2.0 欄位名稱，但語意改為 envelope key wrap 用 |
 | callback_url | string | N | 狀態更新回呼 URL |
-| expires_at | string | Y | 請求過期時間 |
+| expires_at | string | Y | 請求過期時間（受益方 confirm 回覆期限，見下方生命週期說明） |
+
+> **[v2.2 變更] transfer_id 命名規則（提案 7）**
+>
+> `transfer_id` 由**發起方 VASP 自行定義**，不再強制 `tr_{yyyyMMDD}_{流水號}` 格式（流水號跨 VASP 並發易碰撞）。
+>
+> - **長度上限 36 字元**（與 UUID 等長）
+> - 在發起方 VASP 範圍內唯一即可；因 Header 已帶 `X-VASP-ID`，故 `(X-VASP-ID, transfer_id)` 組合即全域唯一
+> - **建議**採用 UUID 或 ULID（不可預測、含時間序），範例：`tr_01HV5K8XYZP3QRT4ABCD1234EF`
+
+> **[v2.2 新增] expires_at 生命週期（提案 10、11）**
+>
+> **適用範圍**（具效力）：
+> - `POST /transfer` 接收當下的檢查點——收到時已過期，受益方可拒絕（回 `INVALID_REQUEST`）
+> - 受益方 **confirm 回覆期限**——須於 `expires_at` 前回覆 `accepted` / `rejected`
+>
+> **不適用範圍**（不再具效力）：
+> - transfer 已進入 `accepted` 後的 `PATCH /transfers/{id}`（以鏈上交易為準）
+> - 鏈上交易已廣播後的資料補正
+>
+> **過期處理**：
+> - `expires_at` 已過且狀態仍為 `pending` 時，受益方**可主動**標記為 `expired` 並終結流程
+> - 狀態已為 `accepted` 時，受益方**不得**單方面 expire
+> - **廣播優先原則**：只要發起方在 `expires_at` 前已執行鏈上簽名廣播，即便受益方收到 `PATCH` 時已過期，仍應視為有效入帳
+>
+> **過期時間長度（confirm 回覆期限）**：規格**預設 24 小時**；允許發起方於 `expires_at` 自訂，有效範圍 **1～72 小時**；超過 72 小時接收方可拒收並回 `INVALID_REQUEST`。
 
 **Response**
 
@@ -548,6 +637,20 @@ private_info = {
 | COMPLIANCE_REJECTION | 合規性拒絕 |
 | INTERNAL_ERROR | 內部錯誤 |
 
+> **[v2.2 新增] Beneficiary Name 處理方式（提案 8）**
+>
+> 關於受益方收到 `beneficiary.name` 後應「僅儲存」或「進行名稱比對」，採分階段做法：
+>
+> **Phase 1（6 月測試 ～ 2026 年底）**
+> - 受益方 VASP **僅須儲存**傳入的 `beneficiary.name`，**不強制名稱比對**
+> - 回覆 `accepted` / `rejected` 主要**依據對 originator info 的審查結果**決定
+> - 理由：接收端無法確認對方填寫格式，大小寫與空格差異皆影響比對，初期強制比對實務困難
+>
+> **Phase 2（2027 年起，後續 PR）**
+> - 規格新增「name normalization 規則」附錄（中文去空白＋繁簡正規化；英文去空白、大小寫不分、去 accents）
+> - 建議比對門檻：Jaro-Winkler ≥ 0.85（建議值，可協商）
+> - 嚴格比對的 VASP 仍可使用 `BENEFICIARY_NAME_MISMATCH` reject code
+
 **Response**
 
 ```json
@@ -617,9 +720,42 @@ private_info = {
 {
   "transaction": {
     "tx_hash": "0x123abc...",
+    "vout": 0,
     "block_number": 12345678
   },
   "status": "completed"
+}
+```
+
+**Request Fields**
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| transaction | object | N | 交易資訊（`status=failed` 時可省略） |
+| transaction.tx_hash | string | N | 鏈上交易 hash |
+| transaction.vout | integer | N | **[v2.2 新增]** UTXO output index，僅 UTXO 鏈（如 `bitcoin`）需提供 |
+| transaction.block_number | integer | N | 區塊高度 |
+| status | string | Y | 更新後狀態（`completed` / `failed` 等） |
+| failure_reason | string | 條件必填 | **[v2.2 新增]** `status=failed` 時必填。列舉：`broadcast_failed` / `insufficient_fee` / `rejected_by_node` / `other` |
+| failure_message | string | N | **[v2.2 新增]** 人類可讀的失敗說明（建議填寫） |
+
+> **[v2.2 新增] 廣播失敗的狀態同步（提案 12）**
+>
+> **(a) 強制同步**：發起方收到 `accepted` 後若鏈上廣播失敗且不重試，**必須**主動發送 `PATCH /transfers/{id}` 將狀態更新為 `failed`，避免受益方陷入無限等待、影響月結對帳。
+>
+> **(b) `failed` 狀態欄位**：`failed` 狀態下無 `tx_hash`，`transaction` 物件**可整個省略**（不應強制傳入 `null` 的 `tx_hash`，以免觸發 Schema 驗證錯誤）。
+
+> **[v2.2 新增] vout 欄位（提案 13）**
+>
+> BTC 等 UTXO 鏈一筆交易可能含多個 output，僅 `tx_hash` 不足以定位受益人收到的 output，故新增 `transaction.vout`（整數）。僅在 UTXO 鏈（如 `bitcoin`）時提供，非 UTXO 鏈可省略或為 `null`。
+
+**`failed` 狀態 Request 範例**
+
+```json
+{
+  "status": "failed",
+  "failure_reason": "broadcast_failed",
+  "failure_message": "Transaction rejected by node: insufficient fee"
 }
 ```
 
@@ -630,6 +766,59 @@ private_info = {
   "transfer_id": "tr_20240121_001",
   "status": "completed",
   "updated_at": "2024-01-21T10:10:00Z"
+}
+```
+
+### 3.6a 資料回補
+
+#### POST /transfers/{transfer_id}/amend
+
+> **[v2.2 新增] 資料回補機制（提案 14）**
+
+發起方 VASP 對已被 `rejected` 的 transfer 補正發起人/受益人資訊後重送，使其重新進入確認流程。依現行自律規範，境內交易於對方未完成確認時可進行資料回補；境外交易所則無回補問題。
+
+**Request**
+
+```json
+{
+  "private_info": {
+    "encrypted_key": "string",
+    "iv": "string",
+    "auth_tag": "string",
+    "ciphertext": "string"
+  },
+  "encryption": {
+    "kid": "key-2024-001"
+  },
+  "amendment_reason": "name_correction",
+  "amended_at": "2024-01-21T11:00:00Z"
+}
+```
+
+**Request Fields**
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| private_info | object | Y | 重新加密後的發起人/受益人資訊 envelope（結構同 POST /transfer） |
+| encryption.kid | string | Y | 接收方 RSA 公鑰 ID |
+| amendment_reason | string | Y | 補正原因：`name_correction` / `address_correction` / `id_correction` / `other` |
+| amended_at | string | Y | 補正時間（ISO 8601） |
+
+> **補正限制條件**
+>
+> 依現行《防制洗錢及打擊資恐注意事項自律規範》，境內交易於對方未完成確認時**可進行資料回補**；惟完整法源條文號待補註確認。以下條件與期限為建議值，待與自律規範條文對齊後定稿：
+>
+> - 僅當 transfer 狀態為 `rejected` 且 `reject_code ∈ { BENEFICIARY_NAME_MISMATCH, INVALID_DATA }` 時可補正
+> - 補正期限：自原 transfer 建立後 **3 個工作日**內
+> - 補正成功後 transfer 重新進入一輪 confirm 流程（狀態回到 `pending`）
+
+**Response**
+
+```json
+{
+  "transfer_id": "tr_20240121_001",
+  "status": "pending",
+  "updated_at": "2024-01-21T11:00:05Z"
 }
 ```
 
@@ -648,6 +837,23 @@ private_info = {
   "timestamp": "2024-01-21T10:00:00Z"
 }
 ```
+
+> **[v2.2 新增] 健康狀態與服務可用性義務（提案 5）**
+>
+> 當 `GET /health` 回覆 `status: "healthy"` 時，該 VASP 的其餘 API（`/address/verify`、`/transfer` 等）**必須於常規時間內返回結果**。各 VASP 有義務確保自身 endpoint 的可用性、健康度與即時監控。
+
+**常規回應時間建議值**
+
+「常規回應時間」之最終 SLA 由公會自律規範定案。以下為**業界常見實踐**供參考：
+
+| 指標 | 建議值 | 說明 |
+|------|--------|------|
+| `GET /health` 本身回應 | ≤ 1 秒 | health check 屬輕量端點，不應有重邏輯 |
+| 其餘 API 回應時間 p95 | ≤ 3 秒 | 95% 的請求應在 3 秒內完成 |
+| 其餘 API 回應時間 p99 | ≤ 10 秒 | 99% 的請求應在 10 秒內完成 |
+| 呼叫方 client 端逾時設定 | 30 秒 | 超過即視為該次呼叫失敗，依 §3.2 廣播查詢例外情境處理 |
+
+> 業界對同步 REST API 的常規做法是以 p95 / p99 百分位數（而非單一固定值）描述回應時間，因為偶發的網路抖動或冷啟動不應視為違規。`/health` 本身應遠快於業務 API；呼叫方則應另設明確的 client timeout，避免單一慢回應拖垮整批廣播查詢。
 
 ## 4. 資料模型
 
@@ -725,6 +931,19 @@ private_info = {
 
 > **背景**：交易所在處理客戶虛擬資產發送時，可能從水庫地址（omnibus/pool address）發送，而非分配給發起人獨一無二的區塊鏈地址。經公會秘書處與主管機關確認，自律規範允許以帳戶編碼替代區塊鏈地址，因帳戶編碼與用戶為 1:1 對應。此做法亦與國際慣例一致（歐盟 TFR、新加坡 PSN02 皆採 account number or blockchain address）。
 
+#### physical_address 大額交易必填規則 **[v2.2 釐清]**
+
+> **第四次技術會議決議（提案 9）**
+>
+> 依《防制洗錢及打擊資恐注意事項自律規範》第十二條之一，移轉虛擬資產等值新臺幣三萬元以上者，應包含接收人之居住、出生或註冊營業之國家及城鎮名稱。對應欄位為 `physical_address`（v2.1 已加入結構化 `{country, city}`）：
+
+| 交易金額（等值 TWD） | `originator.physical_address` | `beneficiary.physical_address` |
+|------|------|------|
+| ≥ 30,000 | **必填** | **必填** |
+| < 30,000 | optional | optional |
+
+> `city` 欄位的標準化用詞（如 `"New Taipei City"` vs `"新北市"`）待確認，將參考 ISO 3166-2:TW 或其他標準。
+
 ### 4.2 VASP
 
 ```json
@@ -742,6 +961,7 @@ private_info = {
 ```json
 {
   "tx_hash": "string",
+  "vout": "integer (UTXO output index, UTXO 鏈才需要)",
   "network": "string",
   "asset": "string",
   "amount": "string (decimal)",
@@ -752,6 +972,8 @@ private_info = {
   "confirmed_at": "string (ISO 8601)"
 }
 ```
+
+> **[v2.2 新增]** `vout` 為 UTXO output index。BTC 等 UTXO 鏈一筆交易可能含多個 output，僅 `tx_hash` 不足以定位受益人收到的 output。僅在 `network` 為 UTXO 鏈（如 `bitcoin`）時提供。
 
 ### 4.4 支援的區塊鏈網路
 
@@ -1014,6 +1236,32 @@ flowchart TD
 - [OpenVASP](https://openvasp.org/)
 - [interVASP Messaging Standard (IVMS101)](https://intervasp.org/)
 
+### 7.6 境外地址 / 自託管錢包自我聲明參考格式 **[v2.2 新增]**
+
+> **第四次技術會議決議（提案 6）**
+>
+> 若 Address Discovery 後無任何境內 VASP 擁有該地址，將歸類為境外地址或自託管錢包，須依各 VASP 內部政策要求用戶自我聲明。
+>
+> 本格式為**附錄級「建議格式」，非強制**——各家可自行決定是否採用，避免強迫所有 VASP 變更既有 KYC 流程。
+
+```json
+{
+  "wallet_address": "0x...",
+  "network": "ethereum",
+  "owner_declaration": {
+    "type": "self_custody | foreign_vasp",
+    "owner_name": "string",
+    "relationship": "self | third_party",
+    "purpose": "string (用途說明)"
+  },
+  "proof_of_ownership": {
+    "method": "satoshi_test | aopp | message_signature | none",
+    "evidence": "string (簽章或交易 hash)"
+  },
+  "declared_at": "string (ISO 8601)"
+}
+```
+
 ## 變更紀錄
 
 | 版本 | 日期 | 變更說明 | 作者 |
@@ -1021,6 +1269,8 @@ flowchart TD
 | 1.0 | 2024-01-21 | 初版發布 | - |
 | 2.0 | 2025-02-11 | 見下方 v2.0 詳細變更列表 | KryptoGO |
 | 2.1 | 2026-03-26 | 第三次技術會議決議：見下方 v2.1 詳細變更列表 | KryptoGO |
+| 2.1.1 | 2026-04-10 | RSA+AES 加密、confirm 條件必填、移除 company_registration：見下方 v2.1.1 詳細變更列表 | KryptoGO |
+| 2.2 | 2026-05-11 | 第四次技術會議決議：見下方 v2.2 詳細變更列表 | KryptoGO |
 
 ### v2.0 變更明細
 
@@ -1080,3 +1330,41 @@ flowchart TD
 <Warning>
 **v2.1.1 為 breaking change** — 移除 `company_registration` 類型、`encryption` 改必填。由於 v2.1 規格尚未有任何正式實作，不需向後相容過渡期。所有實作方請直接使用 `business_registration` 並提供 `encryption.kid`。
 </Warning>
+
+### v2.2 變更明細
+
+> 來源：第四次技術會議（2026-05-11），提案 1～16
+
+| # | 提案 | Section | 變更內容 | 提案人 |
+|---|------|---------|---------|--------|
+| 1 | 1 | 3.1 GET /vasp/info | `vasp_id` 命名規則定案：全小寫 snake_case `^[a-z0-9_]{3,32}$`，禁空格大寫，秘書處統一分配 | XREX |
+| 2 | 2 | 3.1 GET /vasp/info | 釐清 `license_number`：台灣無正式制度，維持 optional、可留空、保留未來擴充 | MaiCoin |
+| 3 | 3 | 2.3 / 3.1 | `revoked` 金鑰對外保留 ≥ 90 天可移除；private key 本地保存 ≥ 5 年 | 跨鏈 |
+| 4 | 4 | 3.2 POST /address/verify | 驗證結果暫存 TTL 暫定 30 天，受益方 `config_version` 變更時強制失效 | 幣託 |
+| 5 | 5 | 3.2 / 3.7 | 新增廣播查詢例外情境處理：禁「timeout 即放行」、endpoint 可用性義務、`/health` healthy 須常規時間回應 | 拓荒數碼 |
+| 6 | 6 | 7.6 附錄 | 新增境外地址 / 自託管錢包自我聲明「建議格式」（非強制） | 幣託 |
+| 7 | 7 | 3.3 POST /transfer | `transfer_id` 改發起方自訂、長度上限 36 字元；不再強制 `tr_{yyyyMMDD}_{流水號}` | 跨鏈 |
+| 8 | 8 | 3.4 confirm | `beneficiary.name` 處理：Phase 1 僅儲存不強制比對，accepted/rejected 依 originator info 審查 | XREX |
+| 9 | 9 | 4.1 資料模型 | 釐清 ≥ 30,000 TWD 等值時 `physical_address` 必填，新增金額門檻對照表 | MaiCoin |
+| 10 | 10 | 3.3 POST /transfer | 新增 `expires_at` 生命週期定義：採廣播優先原則 | 跨鏈 |
+| 11 | 11 | 3.3 POST /transfer | confirm 回覆期限預設 24 小時，可自訂 1～72 小時，逾 72h 可拒收 | 幣託 |
+| 12 | 12 | 3.6 PATCH | 廣播失敗強制 PATCH 為 `failed`；`failed` 狀態 `transaction` 可省略，新增 `failure_reason` / `failure_message` | 跨鏈 |
+| 13 | 13 | 3.6 / 4.3 | Transaction model 新增 optional `vout`（UTXO 鏈 output index） | XREX |
+| 14 | 14 | 3.6a POST /transfers/{id}/amend | 新增資料回補（補正）端點 | 幣託 |
+| 15 | 15 | 2.2 認證 | 新增 `shared_secret` 共享機制（Phase 1）：秘書處 pairwise 統一產生分發，建議每年輪換 | MaiCoin |
+| 16 | 16 | 2. 認證 | 確認 6 月點對點測試不用 mTLS；mTLS 已於 PR #6 自規格移除 | MaiCoin |
+
+#### v2.2 已定案補述
+
+| 項目 | 決議 |
+|------|------|
+| 多家 VASP 同回 `owned=true` 之處理 | 提案 5：已於 LINE 群組討論，留待各家 VASP 依內控政策自行處理，規格不強制統一做法 |
+| `shared_secret` 共享方式 | 提案 15：採 Kordan 提議——由公會秘書處 pairwise 統一產生並分發 |
+
+#### v2.2 待確認 / 待後續 PR
+
+| 項目 | 狀態 | 說明 |
+|------|------|------|
+| `/health` healthy 後常規回應時間 SLA | 建議值已列 | 提案 5：規格已列業界建議值（`/health` ≤ 1s、API p95 ≤ 3s、p99 ≤ 10s、client timeout 30s），最終 SLA 由公會自律規範定案 |
+| `POST /transfers/{id}/amend` 補正法源條文 | 待補註確認 | 提案 14：自律規範已允許回補，惟完整條文號待補；3 工作日期限與可補正 reject_code 範圍待與條文對齊 |
+| Beneficiary Name normalization 規則 | 後續 PR | 提案 8 Phase 2：中英文正規化與 Jaro-Winkler 門檻 |

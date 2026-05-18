@@ -92,6 +92,24 @@ icon: "circle-check"
 | COMPLIANCE_REJECTION | 合規性拒絕 |
 | INTERNAL_ERROR | 內部錯誤 |
 
+## Beneficiary Name 處理方式 [v2.2 新增]
+
+<Note>
+**第四次技術會議決議（提案 8）**
+
+關於受益方 VASP 收到 `beneficiary.name` 後應「僅儲存」或「進行名稱比對」，採分階段做法：
+
+**Phase 1（6 月測試 ～ 2026 年底）**
+- 受益方 VASP **僅須儲存**傳入的 `beneficiary.name`，**不強制進行名稱比對**
+- 回覆 `accepted` / `rejected` 主要**依據對 originator info 的審查結果**決定
+- 理由：接收端無法確認對方填寫格式，大小寫與空格差異皆影響比對，初期強制比對實務困難
+
+**Phase 2（2027 年起，後續 PR）**
+- 規格新增「name normalization 規則」附錄，例如：中文去空白＋繁簡正規化；英文去空白、大小寫不分、去除 accents
+- 建議比對門檻：Jaro-Winkler ≥ 0.85（建議值，可協商）
+- 嚴格比對的 VASP 仍可使用 `BENEFICIARY_NAME_MISMATCH` reject code
+</Note>
+
 ## Response
 
 ```json

@@ -44,6 +44,21 @@ body_hash = SHA256(request_body)
 **[v2.0 變更]** 簽章計算中新增 `{nonce}` 欄位，確保 Nonce 與簽章綁定，防止攻擊者替換 Nonce 後重送請求。
 </Note>
 
+### shared_secret 共享機制
+
+<Note>
+**[v2.2 新增] 第四次技術會議決議（提案 15）**
+
+`shared_secret` 用於 HMAC-SHA256 簽章計算。由於 mTLS 已於 v2.2 自規格移除（見變更紀錄），`shared_secret` 為目前**唯一的 VASP 身分認證機制**，各家應審慎保管。
+
+**Phase 1 共享方式**：由**公會秘書處統一產生並分發**。
+
+- 秘書處為每一對互通的 VASP 產生獨立的 `shared_secret`（pairwise），避免單一密鑰外洩波及全網
+- 透過安全管道（如 PGP 加密郵件、面對面）交付
+- **輪換頻率**：建議每年輪換一次；任一方懷疑外洩時應立即向秘書處申請重新分發
+- `shared_secret` 屬高敏感憑證，不得以明文形式存入程式碼或版本控制系統
+</Note>
+
 ## 敏感資料加密
 
 發起人 / 受益人的個人資訊（PII）採用 **Hybrid Encryption（RSA-OAEP + AES-256-GCM）** 整包加密為 `private_info` envelope 傳輸，而非逐欄位加密。詳細欄位定義與 pseudo-code 請參見 [POST /transfer](/spec/endpoints/transfer) 與 [資料模型](/spec/data-models)。
@@ -70,6 +85,17 @@ body_hash = SHA256(request_body)
 
 **注意**：此為第一階段簡易做法。後續版本應規劃更完善的金鑰管理機制（如集中式金鑰目錄或憑證機制），避免持續依賴手動傳遞公鑰。
 </Accordion>
+
+### revoked 金鑰保留期限
+
+<Note>
+**[v2.2 新增] 第四次技術會議決議（提案 3）**
+
+為避免 `public_keys` 清單隨金鑰輪換無限膨脹，`revoked` 狀態金鑰的保留規範如下：
+
+- **對外公開**：`revoked` 金鑰應於 `GET /vasp/info` 的 `public_keys` 陣列中保留**至少 90 天**，供對方 VASP 辨識歷史訊息所用金鑰；超過 90 天後即可自清單移除
+- **內部保存**：接收方 VASP 應於本地保存對應的 RSA private key **至少 5 年**，以解密資料保留期間內的歷史 `private_info` envelope
+</Note>
 
 ## IP 白名單
 

@@ -56,6 +56,34 @@ icon: "paperclip"
 - 交易紀錄應包含完整的稽核軌跡
 - **[v2.0 新增]** Nonce 記錄應保留至少 **24 小時**，用於防重放檢查
 
+## 境外地址 / 自託管錢包自我聲明參考格式 [v2.2 新增]
+
+<Note>
+**第四次技術會議決議（提案 6）**
+
+若 Address Discovery 後無任何境內 VASP 擁有該地址，將歸類為境外地址或自託管錢包，須依各 VASP 內部政策要求用戶自我聲明。
+
+本格式為**附錄級「建議格式」，非強制**——各家可自行決定是否採用，避免強迫所有 VASP 變更既有 KYC 流程。
+</Note>
+
+```json
+{
+  "wallet_address": "0x...",
+  "network": "ethereum",
+  "owner_declaration": {
+    "type": "self_custody | foreign_vasp",
+    "owner_name": "string",
+    "relationship": "self | third_party",
+    "purpose": "string (用途說明)"
+  },
+  "proof_of_ownership": {
+    "method": "satoshi_test | aopp | message_signature | none",
+    "evidence": "string (簽章或交易 hash)"
+  },
+  "declared_at": "string (ISO 8601)"
+}
+```
+
 ## 參考標準
 
 - [FATF Recommendation 16](https://www.fatf-gafi.org/recommendations.html)

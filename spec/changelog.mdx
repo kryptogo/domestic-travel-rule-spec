@@ -12,6 +12,7 @@ icon: "clock-rotate-left"
 | 2.0 | 2025-02-11 | 見下方 v2.0 詳細變更列表 | KryptoGO |
 | 2.1 | 2026-03-26 | 第三次技術會議決議：見下方 v2.1 詳細變更列表 | KryptoGO |
 | 2.1.1 | 2026-04-10 | RSA+AES Hybrid Encryption（`private_info`）、`/transfers/{id}/confirm` 受益人資訊改條件必填、錯誤回應識別碼欄位釐清、**移除 `company_registration`**（breaking，由 `business_registration` 取代） | KryptoGO |
+| 2.2 | 2026-05-11 | 第四次技術會議決議：見下方 v2.2 詳細變更列表 | KryptoGO |
 
 ## v2.0 變更明細
 
@@ -82,3 +83,41 @@ icon: "clock-rotate-left"
 <Warning>
 **v2.1.1 為 breaking change** — 移除 `company_registration` 類型、`encryption` 改必填。由於 v2.1 規格尚未有任何正式實作，不需向後相容過渡期。所有實作方請直接使用 `business_registration` 並提供 `encryption.kid`。
 </Warning>
+
+## v2.2 變更明細
+
+> 來源：第四次技術會議（2026-05-11）提案 1～16
+
+| # | 提案 | Section | 變更內容 | 提案人 |
+|---|------|---------|---------|--------|
+| 1 | 1 | GET /vasp/info | `vasp_id` 命名規則定案：全小寫 snake_case，`^[a-z0-9_]{3,32}$`，禁空格與大寫，由秘書處統一分配 | XREX |
+| 2 | 2 | GET /vasp/info | 釐清 `license_number`：台灣無正式制度，維持 optional、現階段可留空、保留未來擴充 | MaiCoin |
+| 3 | 3 | 認證與安全 / GET /vasp/info | `revoked` 金鑰對外公開保留 ≥ 90 天後可移除；private key 本地保存 ≥ 5 年 | 跨鏈 |
+| 4 | 4 | POST /address/verify | 驗證結果暫存機制：TTL 暫定 30 天，受益方 `config_version` 變更時強制失效 | 幣託 |
+| 5 | 5 | POST /address/verify / GET /health | 新增廣播查詢例外情境處理：禁止「timeout 即放行」訂為共同標準、endpoint 可用性義務、`/health` healthy 時須常規時間內回應（秒數 TBD） | 拓荒數碼 |
+| 6 | 6 | 附錄 | 新增境外地址 / 自託管錢包自我聲明「建議格式」（非強制） | 幣託 |
+| 7 | 7 | POST /transfer | `transfer_id` 改為發起方自訂、長度上限 36 字元；不再強制 `tr_{yyyyMMDD}_{流水號}`，建議 UUID/ULID | 跨鏈 |
+| 8 | 8 | POST /transfers/{id}/confirm | `beneficiary.name` 處理：Phase 1 僅儲存不強制比對，accepted/rejected 依 originator info 審查 | XREX |
+| 9 | 9 | 資料模型 | 釐清大額交易（≥ 30,000 TWD 等值）`physical_address` 為必填，新增金額門檻對照表 | MaiCoin |
+| 10 | 10 | POST /transfer | 新增 `expires_at` 生命週期定義：適用接收檢查與 confirm 期限、不適用已 accepted 後 PATCH、採廣播優先原則 | 跨鏈 |
+| 11 | 11 | POST /transfer | confirm 回覆期限預設 24 小時，可自訂範圍 1～72 小時，逾 72h 可拒收 | 幣託 |
+| 12 | 12 | PATCH /transfers/{id} | 廣播失敗且不重試時強制 PATCH 為 `failed`；`failed` 狀態 `transaction` 可省略，新增 `failure_reason` / `failure_message` | 跨鏈 |
+| 13 | 13 | PATCH /transfers/{id} / 資料模型 | Transaction model 新增 optional `vout`（UTXO 鏈專用 output index） | XREX |
+| 14 | 14 | POST /transfers/{id}/amend | 新增資料回補（補正）端點，供已 `rejected` 交易修正 PII 後重送 | 幣託 |
+| 15 | 15 | 認證與安全 | 新增 `shared_secret` 共享機制（Phase 1）：由公會秘書處 pairwise 統一產生分發，建議每年輪換 | MaiCoin |
+| 16 | 16 | 認證與安全 | 確認 6 月點對點測試不用 mTLS；mTLS 已於 PR #6 自規格移除 | MaiCoin |
+
+### v2.2 已定案補述
+
+| 項目 | 決議 |
+|------|------|
+| 多家 VASP 同回 `owned=true` 之處理 | 提案 5：已於 LINE 群組討論，留待各家 VASP 依內控政策自行處理，規格不強制統一做法 |
+| `shared_secret` 共享方式 | 提案 15：採 Kordan 提議——由公會秘書處 pairwise 統一產生並分發 |
+
+### v2.2 待確認 / 待後續 PR
+
+| 項目 | 狀態 | 說明 |
+|------|------|------|
+| `/health` healthy 後常規回應時間 SLA | 建議值已列 | 提案 5：規格已列業界建議值（`/health` ≤ 1s、API p95 ≤ 3s、p99 ≤ 10s、client timeout 30s），最終 SLA 由公會自律規範定案 |
+| `POST /transfers/{id}/amend` 補正法源條文 | 待補註確認 | 提案 14：自律規範已允許回補，惟完整條文號待補；3 工作日期限與可補正 reject_code 範圍待與條文對齊 |
+| Beneficiary Name normalization 規則 | 後續 PR | 提案 8 Phase 2：中英文正規化與 Jaro-Winkler 門檻 |

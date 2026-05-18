@@ -12,11 +12,56 @@ icon: "pen-to-square"
 {
   "transaction": {
     "tx_hash": "0x123abc...",
+    "vout": 0,
     "block_number": 12345678
   },
   "status": "completed"
 }
 ```
+
+### Request Fields
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| transaction | object | N | 交易資訊（`status=failed` 時可省略） |
+| transaction.tx_hash | string | N | 鏈上交易 hash |
+| transaction.vout | integer | N | **[v2.2 新增]** UTXO output index，僅 UTXO 鏈（如 `bitcoin`）需提供 |
+| transaction.block_number | integer | N | 區塊高度 |
+| status | string | Y | 更新後狀態（`completed` / `failed` 等） |
+
+<Note>
+**[v2.2 新增] vout 欄位（提案 13）**
+
+BTC 等 UTXO 鏈的一筆交易可能含多個 output，僅 `tx_hash` 不足以定位受益人實際收到的 output。故新增 `transaction.vout`（整數）。
+
+- 僅在 `network` 為 UTXO 鏈（如 `bitcoin`）時提供
+- 非 UTXO 鏈（如 `ethereum`）可省略或為 `null`
+</Note>
+
+## 廣播失敗的狀態同步 [v2.2 新增]
+
+<Note>
+**第四次技術會議決議（提案 12）**
+
+**(a) 強制同步**：發起方收到 `accepted` 後若鏈上廣播失敗且不重試，**必須**主動發送 `PATCH /transfers/{id}` 將狀態更新為 `failed`，避免受益方陷入無限等待、影響月結與對帳。
+
+**(b) `failed` 狀態欄位**：`failed` 狀態下無 `tx_hash`，`transaction` 物件**可整個省略**（不應強制傳入 `null` 的 `tx_hash`，以免觸發 Schema 驗證錯誤）。
+</Note>
+
+**`failed` 狀態 Request 範例**
+
+```json
+{
+  "status": "failed",
+  "failure_reason": "broadcast_failed",
+  "failure_message": "Transaction rejected by node: insufficient fee"
+}
+```
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| failure_reason | string | 條件必填 | `status=failed` 時必填。列舉：`broadcast_failed` / `insufficient_fee` / `rejected_by_node` / `other` |
+| failure_message | string | N | 人類可讀的失敗說明（建議填寫） |
 
 ## Response
 

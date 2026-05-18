@@ -92,7 +92,14 @@ beneficiary:
 | city | string | 城鎮名稱 |
 
 <Warning>
-當交易金額等值 ≥ 30,000 TWD 時，`physical_address` 為**必填**欄位；其餘情況為 optional。
+**[v2.2 釐清] 大額交易必填欄位（提案 9）**
+
+依《防制洗錢及打擊資恐注意事項自律規範》第十二條之一，移轉虛擬資產等值新臺幣三萬元以上者，應包含接收人之居住、出生或註冊營業之國家及城鎮名稱。對應欄位為 `physical_address`（v2.1 已加入結構化 `{country, city}`），必填規則如下：
+
+| 交易金額（等值 TWD） | `originator.physical_address` | `beneficiary.physical_address` |
+|------|------|------|
+| ≥ 30,000 | **必填** | **必填** |
+| < 30,000 | optional | optional |
 
 `city` 欄位的標準化用詞（如 `"New Taipei City"` vs `"新北市"`）待確認，將參考 ISO 3166-2:TW 或其他標準。
 </Warning>
@@ -139,6 +146,7 @@ confirm_beneficiary:
 ```json
 {
   "tx_hash": "string",
+  "vout": "integer (UTXO output index, UTXO 鏈才需要)",
   "network": "string",
   "asset": "string",
   "amount": "string (decimal)",
@@ -149,6 +157,12 @@ confirm_beneficiary:
   "confirmed_at": "string (ISO 8601)"
 }
 ```
+
+<Note>
+**[v2.2 新增] `vout` 欄位（提案 13）**
+
+`vout` 為 UTXO output index。BTC 等 UTXO 鏈一筆交易可能含多個 output，僅 `tx_hash` 不足以定位受益人收到的 output，故新增此欄位。僅在 `network` 為 UTXO 鏈（如 `bitcoin`）時提供；非 UTXO 鏈可省略或為 `null`。
+</Note>
 
 ## 支援的區塊鏈網路
 
