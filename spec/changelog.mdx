@@ -106,6 +106,7 @@ icon: "clock-rotate-left"
 | 14 | 14 | POST /transfers/{id}/amend | 新增資料回補（補正）端點，供已 `rejected` 交易修正 PII 後重送 | 幣託 |
 | 15 | 15 | 認證與安全 | 新增 `shared_secret` 共享機制（Phase 1）：由公會秘書處 pairwise 統一產生分發，建議每年輪換 | MaiCoin |
 | 16 | 16 | 認證與安全 | 確認 6 月點對點測試不用 mTLS；mTLS 已於 PR #6 自規格移除 | MaiCoin |
+| 17 | errata | POST /transfers/{id}/confirm | 補登 `encryption.kid` 欄位至 request schema（v2.1.1 已於說明文字提及 envelope 加密方向反轉與發起方 kid 來源，但 request 範例與欄位表遺漏實際欄位定義）；`status=accepted` 時必填，指向**發起方** RSA 公鑰 ID | PR #8 Review |
 
 ### v2.2 已定案補述
 
