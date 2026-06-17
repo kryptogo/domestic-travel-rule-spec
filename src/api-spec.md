@@ -33,7 +33,9 @@
 | 2.0 | 2025-02-11 | 加入 Nonce 防重放機制、公鑰過期時間、Memo/Tag 支援、移除 Registry 依賴 |
 | 2.1 | 2026-03-26 | 第三次技術會議：physical_address 結構化、date_of_birth 格式放寬、identification type 擴充、Rate Limit 定案、config versioning |
 | 2.1.1 | 2026-04-10 | RSA+AES 加密機制（`private_info`）、`/transfers/{id}/confirm` 受益人資訊改為條件必填、錯誤回應識別碼欄位釐清、**移除 `company_registration`**（breaking，由 `business_registration` 取代） |
-| 2.2 | 2026-05-11 | 第四次技術會議：vasp_id 命名規則、地址暫存與例外情境、transfer_id 格式、expires_at 生命週期、廣播失敗同步、vout 欄位、資料回補端點、shared_secret 共享機制 |
+| 2.2 | 2026-05-11 | 第四次技術會議：vasp_id 命名規則、地址暫存與例外情境、transfer_id 格式、expires_at 生命週期、廣播失敗同步、vout 欄位、資料回補端點、shared_secret 共享機制；會後 Slack 收斂：broadcast-first 接收方規則、`amount_twd`、GET/PATCH 欄位釐清、network/asset 擴充 |
+
+> **規格凍結公告**：v2.2 將於 **2026-06-28 凍結**、**2026-06-29 起進入各家點對點測試**。凍結後僅接受 errata（錯字／文義澄清），新欄位納入下一版。
 
 ### 1.4 術語定義
 
@@ -403,8 +405,11 @@ X-Nonce: {unique_random_string_32_chars}
   "transaction": {
     "tx_hash": null,
     "network": "ethereum",
+    "chain_id": "eip155:1",
     "asset": "ETH",
+    "asset_id": "eip155:1/slip44:60",
     "amount": "1.5",
+    "amount_twd": "105000.00",
     "amount_usd": "3500.00",
     "memo": null,
     "originated_at": "2024-01-21T10:00:00Z"
@@ -487,10 +492,13 @@ private_info = {
 | transfer_id | string | Y | 唯一交易識別碼（**[v2.2]** 由發起方 VASP 自訂，長度上限 36 字元） |
 | transaction | object | Y | 交易資訊 |
 | transaction.tx_hash | string | N | 鏈上交易 hash（可後補） |
-| transaction.network | string | Y | 區塊鏈網路 |
-| transaction.asset | string | Y | 資產類型 |
-| transaction.amount | string | Y | 轉帳金額 |
-| transaction.amount_usd | string | N | 等值美元金額 |
+| transaction.network | string | Y | 區塊鏈網路**短名別名**（如 `ethereum`）；過渡期保留，建議同時提供 `chain_id` |
+| transaction.chain_id | string | 建議 | **[v2.2 新增]** CAIP-2 chain_id（如 `eip155:1`），鏈的正規識別碼 |
+| transaction.asset | string | Y | 資產代號 token symbol（如 `ETH`、`USDT`） |
+| transaction.asset_id | string | 建議 | **[v2.2 新增]** CAIP-19 asset_id（如 `eip155:1/erc20:0x...`），可精確區分 wrapped/bridged |
+| transaction.amount | string | Y | 轉帳金額（原幣別數量） |
+| transaction.amount_twd | string | 建議必填 | **[v2.2 新增]** 等值新台幣金額。**作為自律規範門檻判斷依據**（如大額交易 ≥ 30,000 TWD），以發送方依交易當下匯率認定為準 |
+| transaction.amount_usd | string | N | 等值美元金額（純國際對齊參考，不作為法規門檻判斷依據） |
 | transaction.memo | string | N | **[v2.0 新增]** Memo / Destination Tag |
 | transaction.originated_at | string | Y | 交易發起時間 |
 | private_info | object | Y | **[v2.1 新增]**  敏感資料的加密資訊 |
@@ -529,6 +537,18 @@ private_info = {
 > - **廣播優先原則**：只要發起方在 `expires_at` 前已執行鏈上簽名廣播，即便受益方收到 `PATCH` 時已過期，仍應視為有效入帳
 >
 > **過期時間長度（confirm 回覆期限）**：規格**預設 24 小時**；允許發起方於 `expires_at` 自訂，有效範圍 **1～72 小時**；超過 72 小時接收方可拒收並回 `INVALID_REQUEST`。
+
+> **[v2.2 新增] 鏈上廣播與 TR 資料時序：接收方判斷規則（ZONE Wallet、MaiCoin 於 Slack 提出）**
+>
+> 規格承認兩種合法時序，發起方可擇一：
+> 1. **confirm-first**：先完成 TR data exchange／`confirm`，收到 `accepted` 後再鏈上廣播。
+> 2. **broadcast-first**：先鏈上廣播，後續再補送或完成 TR data（呼應「廣播優先原則」）。
+>
+> **接收方判斷規則（broadcast-first 的最小共識）**：
+> - 受益方在鏈上偵測到 inbound deposit 但**尚無對應 `transfer_id` 的 TR data** 時，應主動保留一段 **grace window** 等待補達，**期間不得僅因「TR 尚未到」即放行或退回**。
+> - **grace window 建議值＝該筆 transfer 的 `expires_at`**；無從得知時採**預設 24 小時**。
+> - grace window 內補達資料一律以 `transfer_id` 判重；逾時仍無對應 TR 資料者，後續處理由各家依內控自律規範設計。
+> - **補件「機制」由各家依自律規範內控實作，規格不新增 supplement 端點**。broadcast-first 補件可重用 `POST /transfer`（以 `transfer_id` 判重）；`rejected` 後 PII 補正走 `POST /transfers/{id}/amend`。`/address/verify` 與 `/transfer` 的 timeout 處理見提案 5。
 
 **Response**
 
@@ -713,11 +733,32 @@ private_info = {
 }
 ```
 
+**Response Fields [v2.2 釐清]**
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| transfer_id | string | Y | 唯一交易識別碼 |
+| status | string | Y | 交易當前狀態 |
+| transaction | object | Y | 交易資訊（`pending` 階段 `tx_hash` 等可為 null） |
+| originating_vasp | object | **Y** | **[v2.2 釐清]** 發起方 VASP 資訊，Response 一律回傳 |
+| beneficiary_vasp | object | **Y** | **[v2.2 釐清]** 受益方 VASP 資訊，Response 一律回傳 |
+| timeline | array | Y | 狀態變更歷程 |
+| created_at | string | Y | 建立時間（ISO 8601） |
+| updated_at | string | Y | 最後更新時間（ISO 8601） |
+
+> **[v2.2 釐清]（MaiCoin 於 Slack 提出）**：`originating_vasp` 與 `beneficiary_vasp` 為 `GET /transfers/{id}` 的**必回欄位**，查詢時一律回傳，不因狀態而省略。
+
 ### 3.6 更新交易資訊
 
 #### PATCH /transfers/{transfer_id}
 
 更新交易資訊（如補充 tx_hash）。
+
+> **[v2.2 釐清] 適用範圍與前置狀態（MaiCoin 於 Slack 提出）**
+>
+> - **前置狀態必須為 `accepted`**：`PATCH` 用於 `accepted` → `completed` / `failed` 的狀態收尾與鏈上資訊補充。`pending` 與 `rejected` 皆不適用。
+> - **可更新的 `transaction` 欄位僅限鏈上資訊**：`tx_hash`、`block_number`、`vout`。
+> - **PII 不得透過 `PATCH` 更新**；`rejected` 後的 PII 補正改用 `POST /transfers/{id}/amend`。
 
 **Request**
 
@@ -947,6 +988,8 @@ private_info = {
 | ≥ 30,000 | **必填** | **必填** |
 | < 30,000 | optional | optional |
 
+> **門檻判斷基準 [v2.2 釐清]**：本門檻以 **`transaction.amount_twd`（等值新台幣）** 為準，由發送方依交易當下匯率認定；不以 `amount_usd` 判斷，避免各家美元匯率不一導致同筆交易門檻結果不一致。
+
 > `city` 欄位的標準化用詞（如 `"New Taipei City"` vs `"新北市"`）待確認，將參考 ISO 3166-2:TW 或其他標準。
 
 ### 4.2 VASP
@@ -967,10 +1010,13 @@ private_info = {
 {
   "tx_hash": "string",
   "vout": "integer (UTXO output index, UTXO 鏈才需要)",
-  "network": "string",
-  "asset": "string",
-  "amount": "string (decimal)",
-  "amount_usd": "string (decimal)",
+  "network": "string (鏈短名別名, e.g. ethereum；過渡期保留)",
+  "chain_id": "string (CAIP-2 chain_id, e.g. eip155:1；建議優先採用)",
+  "asset": "string (token symbol, e.g. USDT)",
+  "asset_id": "string (CAIP-19 asset_id, e.g. eip155:1/erc20:0xdac17...；建議優先採用)",
+  "amount": "string (decimal, 原幣別數量)",
+  "amount_twd": "string (decimal, 等值新台幣；自律規範門檻判斷依據)",
+  "amount_usd": "string (decimal, 等值美元；純國際參考)",
   "memo": "string (Memo/Tag, if applicable)",
   "block_number": "integer",
   "originated_at": "string (ISO 8601)",
@@ -980,43 +1026,87 @@ private_info = {
 
 > **[v2.2 新增]** `vout` 為 UTXO output index。BTC 等 UTXO 鏈一筆交易可能含多個 output，僅 `tx_hash` 不足以定位受益人收到的 output。僅在 `network` 為 UTXO 鏈（如 `bitcoin`）時提供。
 
-### 4.4 支援的區塊鏈網路
+### 4.4 支援的區塊鏈網路 **[v2.2：改採 CAIP-2]**
 
-| Network ID | 說明 |
-|------|------|
-| bitcoin | Bitcoin 主網 |
-| ethereum | Ethereum 主網 |
-| tron | Tron 主網 |
-| bsc | BNB Smart Chain |
-| polygon | Polygon |
-| arbitrum | Arbitrum One |
-| optimism | Optimism |
-| solana | Solana |
-| xrp | **[v2.0 新增]** XRP Ledger |
-| stellar | **[v2.0 新增]** Stellar |
-| cosmos | **[v2.0 新增]** Cosmos Hub |
-| eos | **[v2.0 新增]** EOS |
+> **[v2.2 變更] 鏈識別改採 CAIP-2 標準（PR #7 Code Review 提議）**：鏈以 CAIP-2 `chain_id`（`namespace:reference`）為正規識別碼，填入 `transaction.chain_id`。短名 `network` 過渡期保留為別名，完整切換 CAIP-only 規劃於 v2.3。
 
-### 4.5 支援的資產類型
+| 通用名稱 | `network` 短名（別名） | `chain_id`（CAIP-2，正規） | 狀態 |
+|------|------|------|------|
+| Bitcoin | bitcoin | `bip122:000000000019d6689c085ae165831e93` | 正式 |
+| Ethereum | ethereum | `eip155:1` | 正式 |
+| BNB Smart Chain | bsc | `eip155:56` | 正式 |
+| Polygon | polygon | `eip155:137` | 正式 |
+| Arbitrum One | arbitrum | `eip155:42161` | 正式 |
+| Optimism | optimism | `eip155:10` | 正式 |
+| Avalanche C-Chain | avalanche_c_chain | `eip155:43114` | 正式 |
+| Ethereum Classic | etc | `eip155:61` | 正式 |
+| Litecoin | litecoin | `bip122:12a765e31ffd4059bada1e25190f6e98` | 正式 |
+| Bitcoin Cash | bitcoincash | `bip122:000000000000000000651ef99cb9fcbe` | 正式（CAIP 採分叉後區塊雜湊區別 BTC） |
+| Dogecoin | doge | `bip122:1a91e3dace36e2be3bf030a65679fe82` | 正式 |
+| Solana | solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp` | 正式 |
+| XRP Ledger | xrp | `xrpl:0` | 正式 |
+| Stellar | stellar | `stellar:pubnet` | 正式 |
+| Cosmos Hub | cosmos | `cosmos:cosmoshub-4` | 正式 |
+| EOS | eos | `antelope:aca376f206b8fc25a6ed44dbdc66547c` | 正式（namespace 為 `antelope`） |
+| Polkadot | polkadot | `polkadot:91b171bb158e2d3848fa23a9f1c25182` | 正式 |
+| Tezos | tezos | `tezos:NetXdQprcVkpaWU` | 正式 |
+| Cardano | cardano | `cip34:1-764824073` | **待核對**（network-magic 待確認） |
+| Tron | tron | （待 CAIP namespace 註冊） | **待核對**（暫沿用短名 `tron`） |
 
-| Asset | Network | 說明 |
+### 4.5 支援的資產類型 **[v2.2：改採 CAIP-19]**
+
+> **[v2.2 變更]** 資產以 CAIP-19 `asset_id` 為正規識別碼（`transaction.asset_id`），人類可讀代號存於 `transaction.asset`（token symbol）。**凡可由 CAIP-19 表示、且位於上述支援 CAIP-2 鏈上的資產皆受支援，不再逐欄列舉。** CAIP-19 已內含合約地址，能精確區分 wrapped/bridged。下表為常見範例。
+
+**原生幣（CAIP-19 `slip44`）**
+
+| symbol | 鏈 | `asset_id`（CAIP-19） |
 |------|------|------|
-| BTC | bitcoin | Bitcoin |
-| ETH | ethereum | Ethereum |
-| USDT | ethereum, tron, bsc | Tether USD |
-| USDC | ethereum, polygon | USD Coin |
-| XRP | xrp | **[v2.0 新增]** XRP |
+| BTC | Bitcoin | `bip122:000000000019d6689c085ae165831e93/slip44:0` |
+| ETH | Ethereum | `eip155:1/slip44:60` |
+| LTC | Litecoin | `bip122:12a765e31ffd4059bada1e25190f6e98/slip44:2` |
+| BCH | Bitcoin Cash | `bip122:000000000000000000651ef99cb9fcbe/slip44:145` |
+| DOGE | Dogecoin | `bip122:1a91e3dace36e2be3bf030a65679fe82/slip44:3` |
+| ETC | Ethereum Classic | `eip155:61/slip44:61` |
+| AVAX | Avalanche C-Chain | `eip155:43114/slip44:9000` |
+| BNB | BNB Smart Chain | `eip155:56/slip44:714` |
+| DOT | Polkadot | `polkadot:91b171bb158e2d3848fa23a9f1c25182/slip44:354` |
+| XLM | Stellar | `stellar:pubnet/slip44:148` |
+| XTZ | Tezos | `tezos:NetXdQprcVkpaWU/slip44:1729` |
+| ADA | Cardano | `cip34:1-764824073/slip44:1815`（鏈 ID 待核對） |
+| SOL | Solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501`（待核對） |
+| TRX | Tron | 待核對（Tron namespace 未註冊；slip44=195） |
+
+**代幣（CAIP-19 `erc20`，Ethereum mainnet 範例）**
+
+| symbol | `asset_id`（CAIP-19） |
+|------|------|
+| USDT | `eip155:1/erc20:0xdac17f958d2ee523a2206206994597c13d831ec7` |
+| USDC | `eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` |
+| DAI | `eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f` |
+| LINK | `eip155:1/erc20:0x514910771af9ca656af840dff83e8264ecf986ca` |
+| UNI | `eip155:1/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984` |
+| AAVE | `eip155:1/erc20:0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9` |
+| PAXG | `eip155:1/erc20:0x45804880de22913dafe09f4980848ece6ecbaf78` |
+| MAX | `eip155:1/erc20:0xe7976c4efc60d9f4c200cc1bcef1a1e3b02c73e7` |
+
+**多鏈穩定幣範例**
+
+| symbol | 鏈 | `asset_id`（CAIP-19） |
+|------|------|------|
+| USDC | Polygon（native） | `eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359` |
+| USDC | Solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
+| USDT | Tron（TRC-20） | 待核對（合約 `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`，表示法待定） |
 
 ### 4.6 需要 Memo/Tag 的網路 **[v2.0 新增]**
 
 以下網路在進行地址查詢與交易時，可能需要同時提供 Memo 或 Destination Tag：
 
-| Network | Memo 欄位名稱 | 說明 |
+| 通用名稱（`network` / `chain_id`） | Memo 欄位名稱 | 說明 |
 |------|------|------|
-| xrp | Destination Tag | 數字型態，用於區分同一地址下的不同用戶 |
-| stellar | Memo | 文字或數字型態 |
-| cosmos | Memo | 文字型態 |
-| eos | Memo | 文字型態 |
+| xrp / `xrpl:0` | Destination Tag | 數字型態，用於區分同一地址下的不同用戶 |
+| stellar / `stellar:pubnet` | Memo | 文字或數字型態 |
+| cosmos / `cosmos:cosmoshub-4` | Memo | 文字型態 |
+| eos / `antelope:aca376f206b8fc25a6ed44dbdc66547c` | Memo | 文字型態 |
 
 > 發起方 VASP 在查詢地址及發送 Transfer 時，若目標網路屬於上述類型，**必須**提供對應的 memo 欄位。
 
@@ -1359,6 +1449,11 @@ flowchart TD
 | 15 | 15 | 2.2 認證 | 新增 `shared_secret` 共享機制（Phase 1）：秘書處 pairwise 統一產生分發，建議每年輪換 | MaiCoin |
 | 16 | 16 | 2. 認證 | 確認 6 月點對點測試不用 mTLS；mTLS 已於 PR #6 自規格移除 | MaiCoin |
 | 17 | errata | 3.4 POST /transfers/{id}/confirm | 補登 `encryption.kid` 欄位至 request schema（v2.1.1 已於說明文字提及 envelope 加密方向反轉與發起方 kid 來源，但 request 範例與欄位表遺漏實際欄位定義）；`status=accepted` 時必填，指向**發起方** RSA 公鑰 ID | PR #8 Review |
+| 18 | Slack | 3.3 POST /transfer | 新增「鏈上廣播與 TR 資料時序：接收方判斷規則」——承認 confirm-first 與 broadcast-first 兩種合法時序；broadcast-first 下接收方偵測到無對應 `transfer_id` 的 inbound 時應保留 grace window（建議＝`expires_at`，預設 24h），期間不得僅因 TR 未到即放行/退回；補件機制維持各家自律、不新增 supplement 端點 | ZONE Wallet、MaiCoin |
+| 19 | Slack | 3.3 / 4.3 | 新增 `transaction.amount_twd`（等值新台幣，建議必填）作為自律規範門檻判斷依據；`amount_usd` 降為純國際參考；大額門檻對照表改以 `amount_twd` 為準 | Bito（幣託 Lido） |
+| 20 | Slack | 3.5 GET /transfers/{id} | 釐清 `originating_vasp` 與 `beneficiary_vasp` 為 Response 必回欄位，補 Response Fields 表 | MaiCoin |
+| 21 | Slack | 3.6 PATCH /transfers/{id} | 釐清前置狀態須為 `accepted`、可更新 `transaction` 欄位僅 `tx_hash`/`block_number`/`vout`、PII 補正改走 `amend` | MaiCoin |
+| 22 | PR #7 + Review | 4.3 / 4.4 / 4.5 資料模型 | 鏈/資產識別**改採 CAIP-2 / CAIP-19 標準**：registry 表改為 CAIP-2 chain_id + CAIP-19 asset_id 對照（取代冗長列舉）；`transaction` 新增建議欄位 `chain_id`(CAIP-2)、`asset_id`(CAIP-19)，短名 `network`/`asset` 過渡期保留；Tron/Cardano CAIP 值標 provisional 待核對；完整 CAIP-only 切換留 v2.3 | PR #7（MaiCoin Pia）+ Code Review（a00012025 提議 CAIP） |
 
 #### v2.2 已定案補述
 

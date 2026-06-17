@@ -14,8 +14,11 @@ icon: "paper-plane"
   "transaction": {
     "tx_hash": null,
     "network": "ethereum",
+    "chain_id": "eip155:1",
     "asset": "ETH",
+    "asset_id": "eip155:1/slip44:60",
     "amount": "1.5",
+    "amount_twd": "105000.00",
     "amount_usd": "3500.00",
     "memo": null,
     "originated_at": "2024-01-21T10:00:00Z"
@@ -100,10 +103,13 @@ private_info = {
 | transfer_id | string | Y | 唯一交易識別碼（**[v2.2]** 由發起方 VASP 自訂，長度上限 36 字元，見下方命名規則） |
 | transaction | object | Y | 交易資訊 |
 | transaction.tx_hash | string | N | 鏈上交易 hash（可後補） |
-| transaction.network | string | Y | 區塊鏈網路 |
-| transaction.asset | string | Y | 資產類型 |
-| transaction.amount | string | Y | 轉帳金額 |
-| transaction.amount_usd | string | N | 等值美元金額 |
+| transaction.network | string | Y | 區塊鏈網路**短名別名**（如 `ethereum`）；過渡期保留，建議同時提供 `chain_id` |
+| transaction.chain_id | string | 建議 | **[v2.2 新增]** CAIP-2 chain_id（如 `eip155:1`），鏈的正規識別碼，見[資料模型](/spec/data-models) |
+| transaction.asset | string | Y | 資產代號 token symbol（如 `ETH`、`USDT`） |
+| transaction.asset_id | string | 建議 | **[v2.2 新增]** CAIP-19 asset_id（如 `eip155:1/erc20:0x...`），資產的正規識別碼，可精確區分 wrapped/bridged |
+| transaction.amount | string | Y | 轉帳金額（原幣別數量） |
+| transaction.amount_twd | string | 建議必填 | **[v2.2 新增]** 等值新台幣金額。**作為自律規範門檻判斷依據**（如大額交易 ≥ 30,000 TWD），以發送方依交易當下匯率認定為準 |
+| transaction.amount_usd | string | N | 等值美元金額（純國際對齊參考，不作為法規門檻判斷依據） |
 | transaction.memo | string | N | **[v2.0 新增]** Memo / Destination Tag |
 | transaction.originated_at | string | Y | 交易發起時間 |
 | private_info | object | Y | **[v2.1 新增]**  敏感資料的加密資訊 |
@@ -152,6 +158,28 @@ private_info = {
 - 規格**預設 24 小時**
 - 允許發起方於 `expires_at` 自訂，但有效範圍為 **1～72 小時**
 - 超過 72 小時，接收方可拒收並回 `INVALID_REQUEST`
+</Note>
+
+## 鏈上廣播與 TR 資料時序：接收方判斷規則 [v2.2 新增]
+
+<Note>
+**第四次技術會議後續討論（ZONE Wallet、MaiCoin 於 Slack 提出）**
+
+規格承認兩種合法時序，發起方可擇一：
+
+1. **confirm-first**（先確認後廣播）：先完成 TR data exchange／`confirm`，收到 `accepted` 後再進行鏈上廣播。
+2. **broadcast-first**（先廣播後補）：先鏈上廣播，後續再補送或完成 TR data（呼應上方「廣播優先原則」）。
+
+**接收方判斷規則（broadcast-first 時的最小共識）**：
+
+- 當受益方在鏈上偵測到一筆 inbound deposit，但**尚無對應 `transfer_id` 的 TR data** 時，應主動保留一段 **grace window**，等待對應 TR 資料補達，**期間不得僅因「TR 尚未到」即放行或退回該筆入帳**。
+- **grace window 建議值＝該筆 transfer 的 `expires_at`**；若受益方尚未收到任何對應請求、無從得知 `expires_at`，則採**預設 24 小時**。
+- grace window 內補達的 TR 資料一律以 `transfer_id` 判重（過過既有確認、未收到則當新資料）。
+- grace window 逾時仍無對應 TR 資料者，後續處理（暫扣、要求補正、調整風險等級等）由各家依內控自律規範自行設計。
+
+<Warning>
+**補件「機制」由各家依自律規範內控實作，規格不新增獨立的 supplement 端點。** broadcast-first 補件可重用 `POST /transfer`（以 `transfer_id` 判重），rejected 後的 PII 補正走 [`POST /transfers/{id}/amend`](/spec/endpoints/transfer-amend)。`POST /address/verify` 與 `POST /transfer` 的 timeout／無回應處理見[提案 5：廣播查詢例外情境](/spec/endpoints/address-verify)。
+</Warning>
 </Note>
 
 ## Response

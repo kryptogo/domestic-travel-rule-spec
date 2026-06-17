@@ -4,6 +4,12 @@ description: "API 規格版本變更歷史"
 icon: "clock-rotate-left"
 ---
 
+<Note>
+**規格凍結（Spec Freeze）公告**
+
+v2.2 規格將於 **2026-06-28 凍結**，**2026-06-29 起進入各家點對點測試階段**。凍結後僅接受 errata（錯字／文義澄清），不再變更欄位語意；新欄位一律納入下一版（v2.3）。後續里程碑（7–8 月外部連通、9 月內部端對端與合規培訓、10 月正式上線）維持不變，各里程碑實際日期將提前於公會頻道預告。
+</Note>
+
 ## 版本歷史
 
 | 版本 | 日期 | 變更說明 | 作者 |
@@ -107,6 +113,11 @@ icon: "clock-rotate-left"
 | 15 | 15 | 認證與安全 | 新增 `shared_secret` 共享機制（Phase 1）：由公會秘書處 pairwise 統一產生分發，建議每年輪換 | MaiCoin |
 | 16 | 16 | 認證與安全 | 確認 6 月點對點測試不用 mTLS；mTLS 已於 PR #6 自規格移除 | MaiCoin |
 | 17 | errata | POST /transfers/{id}/confirm | 補登 `encryption.kid` 欄位至 request schema（v2.1.1 已於說明文字提及 envelope 加密方向反轉與發起方 kid 來源，但 request 範例與欄位表遺漏實際欄位定義）；`status=accepted` 時必填，指向**發起方** RSA 公鑰 ID | PR #8 Review |
+| 18 | Slack | POST /transfer | 新增「鏈上廣播與 TR 資料時序：接收方判斷規則」——承認 confirm-first 與 broadcast-first 兩種合法時序；broadcast-first 下接收方偵測到無對應 `transfer_id` 的 inbound 時應保留 grace window（建議＝`expires_at`，預設 24h），期間不得僅因 TR 未到即放行/退回；補件機制維持各家自律、不新增 supplement 端點 | ZONE Wallet、MaiCoin |
+| 19 | Slack | POST /transfer / 資料模型 | 新增 `transaction.amount_twd`（等值新台幣，建議必填）作為自律規範門檻判斷依據；`amount_usd` 降為純國際參考；大額門檻對照表改以 `amount_twd` 為準 | Bito（幣託 Lido） |
+| 20 | Slack | GET /transfers/{id} | 釐清 `originating_vasp` 與 `beneficiary_vasp` 為 Response 必回欄位，補 Response Fields 表 | MaiCoin |
+| 21 | Slack | PATCH /transfers/{id} | 釐清前置狀態須為 `accepted`、可更新 `transaction` 欄位僅 `tx_hash`/`block_number`/`vout`、PII 補正改走 `amend` | MaiCoin |
+| 22 | PR #7 + Review | 資料模型（Transaction / 網路 / 資產） | 鏈/資產識別**改採 CAIP-2 / CAIP-19 標準**：registry 表改為 CAIP-2 `chain_id` + CAIP-19 `asset_id` 對照（取代冗長列舉清單，回應 reviewer 維護性意見）；`transaction` 新增建議欄位 `chain_id`（CAIP-2）、`asset_id`（CAIP-19），短名 `network`/`asset` 過渡期保留為別名；Tron、Cardano 之 CAIP 值標 provisional 待核對；完整 CAIP-only 切換規劃於 v2.3 | PR #7（MaiCoin Pia）+ Code Review（a00012025 提議 CAIP-2/CAIP-19） |
 
 ### v2.2 已定案補述
 

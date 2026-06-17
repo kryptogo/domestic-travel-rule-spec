@@ -46,3 +46,20 @@ icon: "clock-rotate-left"
   "updated_at": "2024-01-21T10:10:00Z"
 }
 ```
+
+## Response Fields [v2.2 釐清]
+
+| 欄位 | 類型 | 必填 | 說明 |
+|------|------|------|------|
+| transfer_id | string | Y | 唯一交易識別碼 |
+| status | string | Y | 交易當前狀態 |
+| transaction | object | Y | 交易資訊（鏈上資料；`pending` 階段 `tx_hash` 等可為 null） |
+| originating_vasp | object | **Y** | **[v2.2 釐清]** 發起方 VASP 資訊，Response 一律回傳 |
+| beneficiary_vasp | object | **Y** | **[v2.2 釐清]** 受益方 VASP 資訊，Response 一律回傳 |
+| timeline | array | Y | 狀態變更歷程 |
+| created_at | string | Y | 建立時間（ISO 8601） |
+| updated_at | string | Y | 最後更新時間（ISO 8601） |
+
+<Note>
+**[v2.2 釐清]（MaiCoin 於 Slack 提出）**：`originating_vasp` 與 `beneficiary_vasp` 為 `GET /transfers/{id}` 的**必回欄位**——它們是 transfer 紀錄的固定組成，查詢時一律回傳，不因狀態而省略。
+</Note>

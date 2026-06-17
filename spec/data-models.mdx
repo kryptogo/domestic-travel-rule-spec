@@ -101,6 +101,8 @@ beneficiary:
 | ≥ 30,000 | **必填** | **必填** |
 | < 30,000 | optional | optional |
 
+**門檻判斷基準 [v2.2 釐清]**：本門檻以 **`transaction.amount_twd`（等值新台幣）** 為準，由發送方依交易當下匯率認定；不以 `amount_usd` 判斷，避免各家美元匯率不一導致同筆交易門檻結果不一致。
+
 `city` 欄位的標準化用詞（如 `"New Taipei City"` vs `"新北市"`）待確認，將參考 ISO 3166-2:TW 或其他標準。
 </Warning>
 
@@ -147,10 +149,13 @@ confirm_beneficiary:
 {
   "tx_hash": "string",
   "vout": "integer (UTXO output index, UTXO 鏈才需要)",
-  "network": "string",
-  "asset": "string",
-  "amount": "string (decimal)",
-  "amount_usd": "string (decimal)",
+  "network": "string (鏈短名別名, e.g. ethereum；過渡期保留)",
+  "chain_id": "string (CAIP-2 chain_id, e.g. eip155:1；建議優先採用)",
+  "asset": "string (token symbol, e.g. USDT)",
+  "asset_id": "string (CAIP-19 asset_id, e.g. eip155:1/erc20:0xdac17...；建議優先採用)",
+  "amount": "string (decimal, 原幣別數量)",
+  "amount_twd": "string (decimal, 等值新台幣；自律規範門檻判斷依據)",
+  "amount_usd": "string (decimal, 等值美元；純國際參考)",
   "memo": "string (Memo/Tag, if applicable)",
   "block_number": "integer",
   "originated_at": "string (ISO 8601)",
@@ -164,43 +169,97 @@ confirm_beneficiary:
 `vout` 為 UTXO output index。BTC 等 UTXO 鏈一筆交易可能含多個 output，僅 `tx_hash` 不足以定位受益人收到的 output，故新增此欄位。僅在 `network` 為 UTXO 鏈（如 `bitcoin`）時提供；非 UTXO 鏈可省略或為 `null`。
 </Note>
 
-## 支援的區塊鏈網路
+## 支援的區塊鏈網路 [v2.2：改採 CAIP-2]
 
-| Network ID | 說明 |
-|------|------|
-| bitcoin | Bitcoin 主網 |
-| ethereum | Ethereum 主網 |
-| tron | Tron 主網 |
-| bsc | BNB Smart Chain |
-| polygon | Polygon |
-| arbitrum | Arbitrum One |
-| optimism | Optimism |
-| solana | Solana |
-| xrp | **[v2.0 新增]** XRP Ledger |
-| stellar | **[v2.0 新增]** Stellar |
-| cosmos | **[v2.0 新增]** Cosmos Hub |
-| eos | **[v2.0 新增]** EOS |
+<Note>
+**[v2.2 變更] 鏈識別改採 CAIP-2 標準（PR #7 Code Review 提議）**
 
-## 支援的資產類型
+鏈以 [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) `chain_id`（格式 `namespace:reference`）為**正規識別碼**，填入 `transaction.chain_id`，與國際錢包/協定生態對齊並消除冗長自訂清單。短名 `network`（如 `ethereum`）於**過渡期保留為別名**，完整切換為 CAIP-only 規劃於 v2.3。
+</Note>
 
-| Asset | Network | 說明 |
+| 通用名稱 | `network` 短名（別名） | `chain_id`（CAIP-2，正規） | 狀態 |
+|------|------|------|------|
+| Bitcoin | bitcoin | `bip122:000000000019d6689c085ae165831e93` | 正式 |
+| Ethereum | ethereum | `eip155:1` | 正式 |
+| BNB Smart Chain | bsc | `eip155:56` | 正式 |
+| Polygon | polygon | `eip155:137` | 正式 |
+| Arbitrum One | arbitrum | `eip155:42161` | 正式 |
+| Optimism | optimism | `eip155:10` | 正式 |
+| Avalanche C-Chain | avalanche_c_chain | `eip155:43114` | 正式 |
+| Ethereum Classic | etc | `eip155:61` | 正式 |
+| Litecoin | litecoin | `bip122:12a765e31ffd4059bada1e25190f6e98` | 正式 |
+| Bitcoin Cash | bitcoincash | `bip122:000000000000000000651ef99cb9fcbe` | 正式（註：CAIP 採分叉後區塊雜湊以區別 BTC，非 genesis） |
+| Dogecoin | doge | `bip122:1a91e3dace36e2be3bf030a65679fe82` | 正式 |
+| Solana | solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp` | 正式 |
+| XRP Ledger | xrp | `xrpl:0` | 正式 |
+| Stellar | stellar | `stellar:pubnet` | 正式 |
+| Cosmos Hub | cosmos | `cosmos:cosmoshub-4` | 正式 |
+| EOS | eos | `antelope:aca376f206b8fc25a6ed44dbdc66547c` | 正式（namespace 為 `antelope`） |
+| Polkadot | polkadot | `polkadot:91b171bb158e2d3848fa23a9f1c25182` | 正式 |
+| Tezos | tezos | `tezos:NetXdQprcVkpaWU` | 正式 |
+| Cardano | cardano | `cip34:1-764824073` | **待核對**（network-magic 待 hitripod 確認） |
+| Tron | tron | （待 CAIP namespace 註冊） | **待核對**（Tron namespace 尚未併入 CAIP registry，暫沿用短名 `tron`） |
+
+## 支援的資產類型 [v2.2：改採 CAIP-19]
+
+<Note>
+**[v2.2 變更] 資產識別改採 CAIP-19 標準**
+
+資產以 [CAIP-19](https://chainagnostic.org/CAIPs/caip-19) `asset_id` 為**正規識別碼**（填入 `transaction.asset_id`），人類可讀代號另存於 `transaction.asset`（token symbol，如 `USDT`）。**凡可由 CAIP-19 表示、且位於上述支援 CAIP-2 鏈上的資產皆受支援，不再逐欄列舉。** 下表僅列常見資產的標準範例。
+
+**wrapped / bridged 資產**：同一 symbol 於非原生鏈上多為 wrapped／bridged 代幣（如 BTC on `bsc` 實為 BTCB）。CAIP-19 `asset_id` 已內含合約地址，能精確區分，請以 `asset_id` 為準。
+</Note>
+
+**原生幣（CAIP-19 `slip44`）**
+
+| symbol | 鏈 | `asset_id`（CAIP-19） |
 |------|------|------|
-| BTC | bitcoin | Bitcoin |
-| ETH | ethereum | Ethereum |
-| USDT | ethereum, tron, bsc | Tether USD |
-| USDC | ethereum, polygon | USD Coin |
-| XRP | xrp | **[v2.0 新增]** XRP |
+| BTC | Bitcoin | `bip122:000000000019d6689c085ae165831e93/slip44:0` |
+| ETH | Ethereum | `eip155:1/slip44:60` |
+| LTC | Litecoin | `bip122:12a765e31ffd4059bada1e25190f6e98/slip44:2` |
+| BCH | Bitcoin Cash | `bip122:000000000000000000651ef99cb9fcbe/slip44:145` |
+| DOGE | Dogecoin | `bip122:1a91e3dace36e2be3bf030a65679fe82/slip44:3` |
+| ETC | Ethereum Classic | `eip155:61/slip44:61` |
+| AVAX | Avalanche C-Chain | `eip155:43114/slip44:9000` |
+| BNB | BNB Smart Chain | `eip155:56/slip44:714` |
+| DOT | Polkadot | `polkadot:91b171bb158e2d3848fa23a9f1c25182/slip44:354` |
+| XLM | Stellar | `stellar:pubnet/slip44:148` |
+| XTZ | Tezos | `tezos:NetXdQprcVkpaWU/slip44:1729` |
+| ADA | Cardano | `cip34:1-764824073/slip44:1815`（鏈 ID 待核對） |
+| SOL | Solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501`（Solana namespace 未定義原生幣表示法，待核對） |
+| TRX | Tron | 待核對（Tron namespace 未註冊；slip44=195） |
+
+**代幣（CAIP-19 `erc20`，Ethereum mainnet 範例）**
+
+| symbol | `asset_id`（CAIP-19） |
+|------|------|
+| USDT | `eip155:1/erc20:0xdac17f958d2ee523a2206206994597c13d831ec7` |
+| USDC | `eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` |
+| DAI | `eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f` |
+| LINK | `eip155:1/erc20:0x514910771af9ca656af840dff83e8264ecf986ca` |
+| UNI | `eip155:1/erc20:0x1f9840a85d5af5bf1d1762f925bdaddc4201f984` |
+| AAVE | `eip155:1/erc20:0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9` |
+| PAXG | `eip155:1/erc20:0x45804880de22913dafe09f4980848ece6ecbaf78` |
+| MAX | `eip155:1/erc20:0xe7976c4efc60d9f4c200cc1bcef1a1e3b02c73e7` |
+
+**多鏈穩定幣範例**
+
+| symbol | 鏈 | `asset_id`（CAIP-19） |
+|------|------|------|
+| USDC | Polygon（native） | `eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359` |
+| USDC | Solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
+| USDT | Tron（TRC-20） | 待核對（合約 `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`，namespace 表示法待定） |
 
 ## 需要 Memo/Tag 的網路 [v2.0 新增]
 
 以下網路在進行地址查詢與交易時，可能需要同時提供 Memo 或 Destination Tag：
 
-| Network | Memo 欄位名稱 | 說明 |
+| 通用名稱（`network` / `chain_id`） | Memo 欄位名稱 | 說明 |
 |------|------|------|
-| xrp | Destination Tag | 數字型態，用於區分同一地址下的不同用戶 |
-| stellar | Memo | 文字或數字型態 |
-| cosmos | Memo | 文字型態 |
-| eos | Memo | 文字型態 |
+| xrp / `xrpl:0` | Destination Tag | 數字型態，用於區分同一地址下的不同用戶 |
+| stellar / `stellar:pubnet` | Memo | 文字或數字型態 |
+| cosmos / `cosmos:cosmoshub-4` | Memo | 文字型態 |
+| eos / `antelope:aca376f206b8fc25a6ed44dbdc66547c` | Memo | 文字型態 |
 
 <Warning>
 發起方 VASP 在查詢地址及發送 Transfer 時，若目標網路屬於上述類型，**必須**提供對應的 memo 欄位。

@@ -6,6 +6,14 @@ icon: "pen-to-square"
 
 更新交易資訊（如補充 tx_hash）。
 
+<Note>
+**[v2.2 釐清] 適用範圍與前置狀態（MaiCoin 於 Slack 提出）**
+
+- **前置狀態必須為 `accepted`**：`PATCH` 用於 `accepted` → `completed` / `failed` 的狀態收尾與鏈上資訊補充。`pending`（尚未確認）與 `rejected`（已拒絕）皆不適用 `PATCH`。
+- **可更新的 `transaction` 欄位僅限鏈上資訊**：`tx_hash`、`block_number`、`vout`。
+- **PII（發起人／受益人資訊）不得透過 `PATCH` 更新**；`rejected` 後的 PII 補正請改用 [`POST /transfers/{id}/amend`](/spec/endpoints/transfer-amend)。
+</Note>
+
 ## Request
 
 ```json
