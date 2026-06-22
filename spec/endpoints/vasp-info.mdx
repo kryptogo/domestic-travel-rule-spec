@@ -46,9 +46,24 @@ X-Nonce: {unique_random_string_32_chars}
     }
   ],
   "supported_assets": [
-    { "symbol": "BTC", "network": "bitcoin" },
-    { "symbol": "ETH", "network": "ethereum" },
-    { "symbol": "USDT", "network": "ethereum" }
+    {
+      "network": "bitcoin",
+      "chain_id": "bip122:000000000019d6689c085ae165831e93",
+      "asset_id": "bip122:000000000019d6689c085ae165831e93/slip44:0",
+      "symbol": "BTC"
+    },
+    {
+      "network": "ethereum",
+      "chain_id": "eip155:1",
+      "asset_id": "eip155:1/slip44:60",
+      "symbol": "ETH"
+    },
+    {
+      "network": "ethereum",
+      "chain_id": "eip155:1",
+      "asset_id": "eip155:1/erc20:0xdac17f958d2ee523a2206206994597c13d831ec7",
+      "symbol": "USDT"
+    }
   ],
   "public_keys": [
     {
@@ -81,7 +96,7 @@ X-Nonce: {unique_random_string_32_chars}
 | lei_code | string | N | LEI 代碼（如有） |
 | jurisdiction | string | Y | 註冊地（ISO 3166-1 alpha-2） |
 | registered_services | array | Y | 註冊業務類型列表（見下表） |
-| supported_assets | array | Y | 支援的資產列表 |
+| supported_assets | array | Y | 支援的資產列表；每筆以 CAIP-2 `chain_id` 與 CAIP-19 `asset_id` 為正規識別，`network` 為過渡期別名、`symbol` 僅供顯示 |
 | public_keys | array | Y | 用於加密通訊的公鑰列表 **[v2.0 變更：由單一物件改為陣列]** |
 | endpoints | object | Y | API 端點 URL |
 | api_version | string | Y | 支援的 API 版本 |

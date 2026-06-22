@@ -20,7 +20,7 @@ icon: "paperclip"
 | api_endpoint | API 基礎 URL |
 | public_key | 加密用公鑰 |
 | ip_whitelist | 允許的 IP 列表 |
-| supported_assets | 支援的資產列表 |
+| supported_assets | 支援的資產列表；使用 CAIP-2 `chain_id` 與 CAIP-19 `asset_id`，`network` 為過渡期別名 |
 | contact_email | 技術聯絡信箱 |
 
 ## 測試環境
@@ -70,6 +70,8 @@ icon: "paperclip"
 {
   "wallet_address": "0x...",
   "network": "ethereum",
+  "chain_id": "eip155:1",
+  "asset_id": "eip155:1/slip44:60",
   "owner_declaration": {
     "type": "self_custody | foreign_vasp",
     "owner_name": "string",

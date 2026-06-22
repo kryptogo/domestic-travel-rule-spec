@@ -12,7 +12,8 @@ icon: "magnifying-glass"
 {
   "address": "0x742d35Cc6634C0532925a3b844Bc9e7595f8fE21",
   "network": "ethereum",
-  "asset": "ETH",
+  "chain_id": "eip155:1",
+  "asset_id": "eip155:1/slip44:60",
   "memo": null,
   "request_id": "req_abc123"
 }
@@ -23,8 +24,9 @@ icon: "magnifying-glass"
 | 欄位 | 類型 | 必填 | 說明 |
 |------|------|------|------|
 | address | string | Y | 要查詢的區塊鏈地址 |
-| network | string | Y | 區塊鏈網路（bitcoin, ethereum, tron...） |
-| asset | string | N | 資產類型（用於多資產地址） |
+| network | string | N | 區塊鏈網路短名別名（如 `ethereum`）；過渡期保留，完整切換 CAIP-only 規劃於 v2.3 |
+| chain_id | string | Y | CAIP-2 chain_id（如 `eip155:1`），鏈的正規識別碼 |
+| asset_id | string | N | CAIP-19 asset_id（用於多資產地址或需精確指定資產時） |
 | memo | string | N | **[v2.0 新增]** Memo / Destination Tag（適用於 XRP, XLM, ATOM, EOS 等需要 Memo/Tag 的鏈） |
 | request_id | string | Y | 請求唯一識別碼（用於冪等性） |
 

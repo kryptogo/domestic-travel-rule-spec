@@ -33,7 +33,7 @@ icon: "pen-to-square"
 |------|------|------|------|
 | transaction | object | N | 交易資訊（`status=failed` 時可省略） |
 | transaction.tx_hash | string | N | 鏈上交易 hash |
-| transaction.vout | integer | N | **[v2.2 新增]** UTXO output index，僅 UTXO 鏈（如 `bitcoin`）需提供 |
+| transaction.vout | integer | N | **[v2.2 新增]** UTXO output index，僅 CAIP-2 `chain_id` 對應 UTXO 鏈時需提供 |
 | transaction.block_number | integer | N | 區塊高度 |
 | status | string | Y | 更新後狀態（`completed` / `failed` 等） |
 
@@ -42,7 +42,7 @@ icon: "pen-to-square"
 
 BTC 等 UTXO 鏈的一筆交易可能含多個 output，僅 `tx_hash` 不足以定位受益人實際收到的 output。故新增 `transaction.vout`（整數）。
 
-- 僅在 `network` 為 UTXO 鏈（如 `bitcoin`）時提供
+- 僅在 CAIP-2 `chain_id` 對應 UTXO 鏈（如 Bitcoin `bip122:000000000019d6689c085ae165831e93`）時提供
 - 非 UTXO 鏈（如 `ethereum`）可省略或為 `null`
 </Note>
 

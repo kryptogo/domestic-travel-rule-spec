@@ -150,9 +150,8 @@ confirm_beneficiary:
   "tx_hash": "string",
   "vout": "integer (UTXO output index, UTXO 鏈才需要)",
   "network": "string (鏈短名別名, e.g. ethereum；過渡期保留)",
-  "chain_id": "string (CAIP-2 chain_id, e.g. eip155:1；建議優先採用)",
-  "asset": "string (token symbol, e.g. USDT)",
-  "asset_id": "string (CAIP-19 asset_id, e.g. eip155:1/erc20:0xdac17...；建議優先採用)",
+  "chain_id": "string (CAIP-2 chain_id, e.g. eip155:1)",
+  "asset_id": "string (CAIP-19 asset_id, e.g. eip155:1/erc20:0xdac17...)",
   "amount": "string (decimal, 原幣別數量)",
   "amount_twd": "string (decimal, 等值新台幣；自律規範門檻判斷依據)",
   "amount_usd": "string (decimal, 等值美元；純國際參考)",
@@ -166,7 +165,7 @@ confirm_beneficiary:
 <Note>
 **[v2.2 新增] `vout` 欄位（提案 13）**
 
-`vout` 為 UTXO output index。BTC 等 UTXO 鏈一筆交易可能含多個 output，僅 `tx_hash` 不足以定位受益人收到的 output，故新增此欄位。僅在 `network` 為 UTXO 鏈（如 `bitcoin`）時提供；非 UTXO 鏈可省略或為 `null`。
+`vout` 為 UTXO output index。BTC 等 UTXO 鏈一筆交易可能含多個 output，僅 `tx_hash` 不足以定位受益人收到的 output，故新增此欄位。僅在 CAIP-2 `chain_id` 對應 UTXO 鏈（如 Bitcoin `bip122:000000000019d6689c085ae165831e93`）時提供；非 UTXO 鏈可省略或為 `null`。
 </Note>
 
 ## 支援的區塊鏈網路 [v2.2：改採 CAIP-2]
@@ -174,10 +173,10 @@ confirm_beneficiary:
 <Note>
 **[v2.2 變更] 鏈識別改採 CAIP-2 標準（PR #7 Code Review 提議）**
 
-鏈以 [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) `chain_id`（格式 `namespace:reference`）為**正規識別碼**，填入 `transaction.chain_id`，與國際錢包/協定生態對齊並消除冗長自訂清單。短名 `network`（如 `ethereum`）於**過渡期保留為別名**，完整切換為 CAIP-only 規劃於 v2.3。
+鏈以 [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) `chain_id`（格式 `namespace:reference`）為**正規識別碼**，填入 API payload 的 `chain_id`。短名 `network` 過渡期保留為別名，完整切換 CAIP-only 規劃於 v2.3。
 </Note>
 
-| 通用名稱 | `network` 短名（別名） | `chain_id`（CAIP-2，正規） | 狀態 |
+| 通用名稱 | `network` 短名（過渡期別名） | `chain_id`（CAIP-2，正規） | 狀態 |
 |------|------|------|------|
 | Bitcoin | bitcoin | `bip122:000000000019d6689c085ae165831e93` | 正式 |
 | Ethereum | ethereum | `eip155:1` | 正式 |
@@ -198,14 +197,14 @@ confirm_beneficiary:
 | Polkadot | polkadot | `polkadot:91b171bb158e2d3848fa23a9f1c25182` | 正式 |
 | Tezos | tezos | `tezos:NetXdQprcVkpaWU` | 正式 |
 | Cardano | cardano | `cip34:1-764824073` | **待核對**（network-magic 待 hitripod 確認） |
-| Tron | tron | （待 CAIP namespace 註冊） | **待核對**（Tron namespace 尚未併入 CAIP registry，暫沿用短名 `tron`） |
+| Tron | tron | （待 CAIP namespace 註冊） | **待核對**（Tron namespace 尚未併入 CAIP registry） |
 
 ## 支援的資產類型 [v2.2：改採 CAIP-19]
 
 <Note>
 **[v2.2 變更] 資產識別改採 CAIP-19 標準**
 
-資產以 [CAIP-19](https://chainagnostic.org/CAIPs/caip-19) `asset_id` 為**正規識別碼**（填入 `transaction.asset_id`），人類可讀代號另存於 `transaction.asset`（token symbol，如 `USDT`）。**凡可由 CAIP-19 表示、且位於上述支援 CAIP-2 鏈上的資產皆受支援，不再逐欄列舉。** 下表僅列常見資產的標準範例。
+資產以 [CAIP-19](https://chainagnostic.org/CAIPs/caip-19) `asset_id` 為**正規識別碼**（填入 API payload 的 `asset_id`）。**凡可由 CAIP-19 表示、且位於上述支援 CAIP-2 鏈上的資產皆受支援，不再逐欄列舉。** 下表僅列常見資產的標準範例。
 
 **wrapped / bridged 資產**：同一 symbol 於非原生鏈上多為 wrapped／bridged 代幣（如 BTC on `bsc` 實為 BTCB）。CAIP-19 `asset_id` 已內含合約地址，能精確區分，請以 `asset_id` 為準。
 </Note>
@@ -254,12 +253,12 @@ confirm_beneficiary:
 
 以下網路在進行地址查詢與交易時，可能需要同時提供 Memo 或 Destination Tag：
 
-| 通用名稱（`network` / `chain_id`） | Memo 欄位名稱 | 說明 |
+| `chain_id`（CAIP-2） | Memo 欄位名稱 | 說明 |
 |------|------|------|
-| xrp / `xrpl:0` | Destination Tag | 數字型態，用於區分同一地址下的不同用戶 |
-| stellar / `stellar:pubnet` | Memo | 文字或數字型態 |
-| cosmos / `cosmos:cosmoshub-4` | Memo | 文字型態 |
-| eos / `antelope:aca376f206b8fc25a6ed44dbdc66547c` | Memo | 文字型態 |
+| `xrpl:0` | Destination Tag | 數字型態，用於區分同一地址下的不同用戶 |
+| `stellar:pubnet` | Memo | 文字或數字型態 |
+| `cosmos:cosmoshub-4` | Memo | 文字型態 |
+| `antelope:aca376f206b8fc25a6ed44dbdc66547c` | Memo | 文字型態 |
 
 <Warning>
 發起方 VASP 在查詢地址及發送 Transfer 時，若目標網路屬於上述類型，**必須**提供對應的 memo 欄位。
