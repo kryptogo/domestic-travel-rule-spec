@@ -1,0 +1,103 @@
+---
+title: "點對點測試計畫"
+description: "各家 VASP sandbox 互通測試的階段、案例、前置準備與認證簽章 sample"
+icon: "vial"
+---
+
+<Note>
+本頁為**建議草案**，供各家先行準備。實際 kickoff 時程與配對排程，由公會秘書處於測試啟動會議統一核定。規格凍結（freeze）後，各家依本計畫進行 sandbox 點對點互通測試。
+</Note>
+
+## 分階段測試
+
+各家 testnet 就緒時間不一，故將**不依賴鏈上交易的協定互通**與**依賴 testnet 的鏈上流程**拆開，使測試啟動初期即有明確可測項目，不必等所有人 testnet 都就緒。
+
+| 階段 | 範圍 | 是否依賴 testnet 鏈上交易 |
+|------|------|------|
+| **Phase A — 協定互通** | 連通性、HMAC 簽章互通、`/vasp/info` 公鑰交換、`/address/verify`、`/transfer` 收送與 envelope 加解密、confirm/reject、狀態查詢 | ❌ 否（`tx_hash` 可用 mock 值） |
+| **Phase B — 鏈上完整流程** | 含真實 testnet 鏈上交易的 `PATCH`（補 `tx_hash`/`vout`）、broadcast-first grace window、廣播失敗 `failed` 同步 | ✅ 是（各家 testnet 就緒後） |
+
+<Tip>
+Phase A 一開始就能驗證「兩家系統能否互相認證、加解密、走完 TR 協定」——這是最關鍵也最容易出錯的部分，且不必等鏈上交易。建議優先完成 Phase A 再進 Phase B。
+</Tip>
+
+## 前置準備 Checklist
+
+<Steps>
+<Step title="取得認證憑證">
+從公會取得 pairwise `shared_secret`（HMAC 簽章用）與對方對外固定 IP（設定白名單）。
+</Step>
+<Step title="Sandbox 端點上線">
+`GET /health`、`GET /vasp/info`、`POST /address/verify`、`POST /transfer`、`GET`/`PATCH /transfers/{id}`、`POST /transfers/{id}/confirm`、`POST /transfers/{id}/amend`。
+</Step>
+<Step title="公開 RSA 公鑰">
+`GET /vasp/info` 對外公開 RSA 公鑰（建議 RSA-4096）與 `kid`。
+</Step>
+<Step title="準備 testnet 收款地址">
+對應各 mainnet 的 testnet（如 ethereum→Sepolia/Hoodi、bitcoin→testnet3）。
+</Step>
+<Step title="回填 Sandbox 端點蒐集表">
+含 base URL / callback URL / 對外 IP / kid / 技術窗口，交公會彙整。
+</Step>
+</Steps>
+
+## 測試案例
+
+逐項對測並記錄結果。負向案例（A1、A2、A8）同樣重要——確保錯誤情境有正確回應。
+
+| # | 案例 | 動作 | 預期結果 |
+|---|------|------|---------|
+| A0 | **連通性 + 簽章互通** | 對對方 `GET /health` 帶完整 4 個認證 header | `200 healthy`；簽章驗證通過 |
+| A1 | 簽章失敗（負向） | 故意用錯誤 `shared_secret` 簽章 | `401`（簽章不符） |
+| A2 | 防重放（負向） | 重送相同 `X-Nonce` | `409 DUPLICATE_NONCE` |
+| A3 | 公鑰交換 | `GET /vasp/info` 取對方 `public_keys[].kid` | 取得 active 公鑰，供 envelope 加密 |
+| A4 | 地址驗證 | `POST /address/verify`（需 memo 之鏈帶 memo） | 回 `owned=true/false` |
+| A5 | **發送 Transfer** | `POST /transfer`，PII 以 RSA-OAEP + AES-256-GCM 加密為 `private_info` | `pending`；對方能以自家 private key 解密 envelope |
+| A6 | 受益方確認 | `POST /transfers/{id}/confirm`（`accepted`，帶**發起方** `encryption.kid`） | 狀態 `accepted` |
+| A7 | 拒絕 + 回補 | confirm `rejected` → `POST /transfers/{id}/amend` 補正 PII 重送 | 重新進入 `pending` |
+| A8 | 大額欄位（負向） | `amount_twd ≥ 30000` 但缺 `physical_address` | 必填校驗應拒絕 |
+| A9 | 狀態查詢 | `GET /transfers/{id}` | 回傳含必填 `originating_vasp` / `beneficiary_vasp` |
+| **B1** | 鏈上補登 | `PATCH /transfers/{id}` 補真實 testnet `tx_hash`（UTXO 鏈帶 `vout`） | 狀態 `completed` |
+| **B2** | broadcast-first | 先廣播、TR 後到，驗證接收方 grace window 行為 | grace window 內不誤放行/退回 |
+| **B3** | 廣播失敗 | `PATCH` status=`failed` + `failure_reason` | 狀態 `failed`，不卡無限等待 |
+
+## 認證簽章 Sample
+
+互通第一步是**兩家 HMAC-SHA256 簽章算法一致**。完整可執行的 reference sample（發送方產生簽章 + 接收方驗章，純標準庫，可移植任何語言）見 repo：
+
+```
+examples/tr_sign_sample.py
+```
+
+核心簽章邏輯（依[認證與安全](/spec/authentication)）：
+
+```python
+import hmac, hashlib
+
+def canonical_message(method, path, timestamp, nonce, body):
+    body_hash = hashlib.sha256(body.encode()).hexdigest()
+    # ⚠️ path 必須與請求 URL 的 path 逐字一致（含 /travel-rule/v1 前綴、不含 query）
+    return f"{method}\n{path}\n{timestamp}\n{nonce}\n{body_hash}"
+
+def sign(method, path, body, shared_secret):
+    msg = canonical_message(method, path, timestamp, nonce, body)
+    return hmac.new(shared_secret.encode(), msg.encode(), hashlib.sha256).hexdigest()
+```
+
+**接收方驗章步驟**：
+
+<Steps>
+<Step title="重算簽章比對">
+取 header 的 `X-Timestamp` / `X-Nonce`，加上自己重算的 `body_hash`，用**同一把** `shared_secret` 重算 HMAC，與 `X-Signature` 常數時間比對。
+</Step>
+<Step title="檢查 Nonce">
+`X-Nonce` 未用過（保留 ≥ 24h）；重複回 `409 DUPLICATE_NONCE`。
+</Step>
+<Step title="檢查時窗">
+`X-Timestamp` 在合理時窗內（建議 ±5 分鐘）防重放。
+</Step>
+</Steps>
+
+<Warning>
+簽章 message 的 `path` 與實際請求 URL 的 path 必須**逐字一致**（含 `/travel-rule/v1` 前綴）——這是跨家對測最常見的不一致來源，請優先核對。完整 envelope 加密（RSA-OAEP + AES-256-GCM）pseudo-code 見 [POST /transfer](/spec/endpoints/transfer)。
+</Warning>

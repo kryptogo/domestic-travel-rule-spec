@@ -118,6 +118,7 @@ v2.2 規格將於 **2026-06-28 凍結**，**2026-06-29 起進入各家點對點�
 | 20 | Slack | GET /transfers/{id} | 釐清 `originating_vasp` 與 `beneficiary_vasp` 為 Response 必回欄位，補 Response Fields 表 | MaiCoin |
 | 21 | Slack | PATCH /transfers/{id} | 釐清前置狀態須為 `accepted`、可更新 `transaction` 欄位僅 `tx_hash`/`block_number`/`vout`、PII 補正改走 `amend` | MaiCoin |
 | 22 | PR #7 + Review | 資料模型（Transaction / 網路 / 資產） | 鏈/資產識別**改採 CAIP-2 / CAIP-19 標準**：registry 表改為 CAIP-2 `chain_id` + CAIP-19 `asset_id` 對照（取代冗長列舉清單，回應 reviewer 維護性意見）；`transaction` 新增建議欄位 `chain_id`（CAIP-2）、`asset_id`（CAIP-19），短名 `network`/`asset` 過渡期保留為別名；Tron、Cardano 之 CAIP 值標 provisional 待核對；完整 CAIP-only 切換規劃於 v2.3 | PR #7（MaiCoin Pia）+ Code Review（a00012025 提議 CAIP-2/CAIP-19） |
+| 23 | Slack | 點對點測試計畫（新頁） | 新增 `spec/testing.mdx` 測試計畫：Phase A（協定互通）/ Phase B（鏈上流程）分階段、前置準備 checklist、A0–B3 測試案例、認證簽章可執行 sample（`examples/tr_sign_sample.py`，已驗證 HMAC 跨工具一致） | Bonnie、Wegin（測試 case/起迄/前置準備提問） |
 
 ### v2.2 已定案補述
 

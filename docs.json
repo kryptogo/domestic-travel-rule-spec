@@ -46,6 +46,10 @@
             "pages": ["spec/flow-examples"]
           },
           {
+            "group": "點對點測試",
+            "pages": ["spec/testing"]
+          },
+          {
             "group": "附錄",
             "pages": ["spec/appendix", "spec/changelog"]
           }

@@ -1273,6 +1273,62 @@ flowchart TD
 
 > **注意**：各 VASP 需自行維護一份境內 VASP 的端點清單（Base URL）。在第一階段，此清單可透過公會秘書處統一維護與分發。後續版本可考慮建立中央 Registry 機制。
 
+## 6a. 點對點測試計畫 **[v2.2 新增]**
+
+> 本節為**建議草案**，供各家先行準備；實際 kickoff 時程與配對排程由公會秘書處於測試啟動會議統一核定。完整版含 Mintlify 步驟說明見 `spec/testing.mdx`，可執行 sample 見 `examples/tr_sign_sample.py`。
+
+### 6a.1 分階段測試
+
+各家 testnet 就緒時間不一，將**不依賴鏈上交易的協定互通**與**依賴 testnet 的鏈上流程**拆開：
+
+| 階段 | 範圍 | 依賴 testnet 鏈上交易 |
+|------|------|------|
+| Phase A — 協定互通 | 連通性、HMAC 簽章互通、`/vasp/info` 公鑰交換、`/address/verify`、`/transfer` 收送與 envelope 加解密、confirm/reject、狀態查詢 | 否（`tx_hash` 可用 mock） |
+| Phase B — 鏈上完整流程 | 含真實 testnet 鏈上交易的 `PATCH`（補 `tx_hash`/`vout`）、broadcast-first grace window、廣播失敗 `failed` 同步 | 是 |
+
+### 6a.2 前置準備
+
+1. 取得 pairwise `shared_secret` 與對方對外固定 IP（白名單）
+2. Sandbox 端點上線（health / vasp-info / address-verify / transfer / transfers / confirm / amend）
+3. `GET /vasp/info` 公開 RSA 公鑰（建議 RSA-4096）與 `kid`
+4. 準備 testnet 收款地址
+5. 回填 Sandbox 端點蒐集表交公會彙整
+
+### 6a.3 測試案例
+
+| # | 案例 | 動作 | 預期 |
+|---|------|------|------|
+| A0 | 連通性 + 簽章互通 | 對方 `GET /health` 帶完整 4 header | `200 healthy`、簽章通過 |
+| A1 | 簽章失敗（負向） | 錯誤 `shared_secret` | `401` |
+| A2 | 防重放（負向） | 重送相同 `X-Nonce` | `409 DUPLICATE_NONCE` |
+| A3 | 公鑰交換 | `GET /vasp/info` 取 `kid` | 取得 active 公鑰 |
+| A4 | 地址驗證 | `POST /address/verify` | `owned=true/false` |
+| A5 | 發送 Transfer | `POST /transfer`（envelope 加密） | `pending`、對方可解密 |
+| A6 | 受益方確認 | `POST /transfers/{id}/confirm`（帶發起方 `encryption.kid`） | `accepted` |
+| A7 | 拒絕 + 回補 | `rejected` → `amend` 重送 | 回 `pending` |
+| A8 | 大額欄位（負向） | `amount_twd ≥ 30000` 缺 `physical_address` | 必填校驗拒絕 |
+| A9 | 狀態查詢 | `GET /transfers/{id}` | 含必填 vasp 欄位 |
+| B1 | 鏈上補登 | `PATCH` 補真實 testnet `tx_hash`（UTXO 帶 `vout`） | `completed` |
+| B2 | broadcast-first | 先廣播、TR 後到 | grace window 內不誤放行/退回 |
+| B3 | 廣播失敗 | `PATCH` status=`failed` | `failed`，不卡等待 |
+
+### 6a.4 認證簽章 sample
+
+可執行 reference（發送方簽章 + 接收方驗章，純標準庫）見 `examples/tr_sign_sample.py`。核心：
+
+```python
+import hmac, hashlib
+def canonical_message(method, path, timestamp, nonce, body):
+    body_hash = hashlib.sha256(body.encode()).hexdigest()
+    # ⚠️ path 須與請求 URL 的 path 逐字一致（含 /travel-rule/v1 前綴、不含 query）
+    return f"{method}\n{path}\n{timestamp}\n{nonce}\n{body_hash}"
+def sign(method, path, body, shared_secret):
+    msg = canonical_message(method, path, timestamp, nonce, body)
+    return hmac.new(shared_secret.encode(), msg.encode(), hashlib.sha256).hexdigest()
+```
+
+接收方驗章：① 用同一把 `shared_secret` 重算 HMAC 常數時間比對；② `X-Nonce` 未用過（保留 ≥ 24h），重複回 `409 DUPLICATE_NONCE`；③ `X-Timestamp` 在 ±5 分鐘時窗內。**簽章 `path` 與 URL path 逐字一致是跨家對測最常見炸點**，請優先核對。
+
 ## 7. 附錄
 
 ### 7.1 VASP 註冊資訊
@@ -1454,6 +1510,7 @@ flowchart TD
 | 20 | Slack | 3.5 GET /transfers/{id} | 釐清 `originating_vasp` 與 `beneficiary_vasp` 為 Response 必回欄位，補 Response Fields 表 | MaiCoin |
 | 21 | Slack | 3.6 PATCH /transfers/{id} | 釐清前置狀態須為 `accepted`、可更新 `transaction` 欄位僅 `tx_hash`/`block_number`/`vout`、PII 補正改走 `amend` | MaiCoin |
 | 22 | PR #7 + Review | 4.3 / 4.4 / 4.5 資料模型 | 鏈/資產識別**改採 CAIP-2 / CAIP-19 標準**：registry 表改為 CAIP-2 chain_id + CAIP-19 asset_id 對照（取代冗長列舉）；`transaction` 新增建議欄位 `chain_id`(CAIP-2)、`asset_id`(CAIP-19)，短名 `network`/`asset` 過渡期保留；Tron/Cardano CAIP 值標 provisional 待核對；完整 CAIP-only 切換留 v2.3 | PR #7（MaiCoin Pia）+ Code Review（a00012025 提議 CAIP） |
+| 23 | Slack | 6a 點對點測試計畫（新節） | 新增測試計畫：Phase A（協定互通）/ Phase B（鏈上流程）分階段、前置準備、A0–B3 測試案例、認證簽章 sample（`examples/tr_sign_sample.py`，HMAC 已驗證跨工具一致） | Bonnie、Wegin |
 
 #### v2.2 已定案補述
 
