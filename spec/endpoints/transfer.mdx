@@ -39,7 +39,6 @@ icon: "paper-plane"
   "encryption": {
     "kid": "key-2024-001"
   },
-  "callback_url": "https://api.vasp-a.com/travel-rule/v1/callback",
   "expires_at": "2024-01-21T10:30:00Z"
 }
 ```
@@ -119,8 +118,13 @@ private_info = {
 | beneficiary_vasp | object | Y | 受益方 VASP 資訊 |
 | encryption | object | Y | **[v2.1.1 變更]** Envelope 加密相關 metadata（v2.1.1 起為必填，因 envelope 解密需依此判斷 RSA private key） |
 | encryption.kid | string | Y | **[v2.1.1 變更]** 用於解開 `private_info.encrypted_key` 的接收方 RSA 公鑰 ID，對應 `GET /vasp/info` 回傳之 `public_keys[].kid`。沿用 v2.0 欄位名稱，但語意改為 envelope key wrap 用 |
-| callback_url | string | N | 狀態更新回呼 URL |
 | expires_at | string | Y | 請求過期時間（受益方 confirm 回覆期限，見下方生命週期說明） |
+
+<Note>
+**[v2.2 移除] `callback_url` 欄位**
+
+原 `callback_url` 已移除。受益方 VASP 回傳確認結果係直接呼叫**發起方** VASP 的 [`POST /transfers/{id}/confirm`](/spec/endpoints/transfer-confirm)（後續鏈上資訊走 `PATCH /transfers/{id}`），不需另設回呼 URL。發起方端點由受益方**以請求 Header 的 `X-VASP-ID` 從公會維護的 VASP 清單反查 base URL** 取得，端點路徑為標準的 `/transfers/{id}/confirm`，故 `callback_url` 屬冗餘欄位。
+</Note>
 
 ## transfer_id 命名規則 [v2.2 變更]
 

@@ -438,7 +438,6 @@ X-Nonce: {unique_random_string_32_chars}
   "encryption": {
     "kid": "key-2024-001"
   },
-  "callback_url": "https://api.vasp-a.com/travel-rule/v1/callback",
   "expires_at": "2024-01-21T10:30:00Z"
 }
 ```
@@ -516,8 +515,11 @@ private_info = {
 | beneficiary_vasp | object | Y | 受益方 VASP 資訊 |
 | encryption | object | Y | **[v2.1.1 變更]** Envelope 加密相關 metadata（v2.1.1 起為必填，因 envelope 解密需依此判斷 RSA private key） |
 | encryption.kid | string | Y | **[v2.1.1 變更]** 用於解開 `private_info.encrypted_key` 的接收方 RSA 公鑰 ID，對應 `GET /vasp/info` 回傳之 `public_keys[].kid`。沿用 v2.0 欄位名稱，但語意改為 envelope key wrap 用 |
-| callback_url | string | N | 狀態更新回呼 URL |
 | expires_at | string | Y | 請求過期時間（受益方 confirm 回覆期限，見下方生命週期說明） |
+
+> **[v2.2 移除] `callback_url` 欄位**
+>
+> 原 `callback_url` 已移除。受益方回傳確認結果係直接呼叫**發起方** `POST /transfers/{id}/confirm`（鏈上資訊走 `PATCH /transfers/{id}`），不需另設回呼 URL。發起方端點由受益方**以 Header 的 `X-VASP-ID` 從公會 VASP 清單反查 base URL** 取得，路徑為標準 `/transfers/{id}/confirm`，故 `callback_url` 屬冗餘。
 
 > **[v2.2 變更] transfer_id 命名規則（提案 7）**
 >
@@ -1521,6 +1523,7 @@ def sign(method, path, body, shared_secret):
 | 21 | Slack | 3.6 PATCH /transfers/{id} | 釐清前置狀態須為 `accepted`、可更新 `transaction` 欄位僅 `tx_hash`/`block_number`/`vout`、PII 補正改走 `amend` | MaiCoin |
 | 22 | PR #7 + Review | 4.3 / 4.4 / 4.5 資料模型 | 鏈/資產識別**改採 CAIP-2 / CAIP-19 標準**：registry 表改為 CAIP-2 chain_id + CAIP-19 asset_id 對照（取代冗長列舉）；API payload 以 `chain_id`(CAIP-2)、`asset_id`(CAIP-19) 為正規識別；短名 `network` 過渡期保留為別名，完整切換 CAIP-only 規劃於 v2.3；Cardano CAIP 值仍標 provisional 待核對；Tron 採 `tron:mainnet` 與 `tron:mainnet/token:*`、`tron:mainnet/erc20:*` | PR #7（MaiCoin Pia）+ Code Review（a00012025 提議 CAIP） |
 | 23 | Slack | 6a 點對點測試計畫（新節） | 新增測試計畫：Phase A（協定互通）/ Phase B（鏈上流程）分階段、前置準備、A0–B3 測試案例、認證簽章 sample（`examples/tr_sign_sample.py`，HMAC 已驗證跨工具一致） | Bonnie、Wegin |
+| 24 | Slack | 3.3 POST /transfer | **移除 `callback_url` 欄位**：受益方回傳結果係直接呼叫發起方 `POST /transfers/{id}/confirm`（鏈上資訊走 `PATCH`），發起方端點以 `X-VASP-ID` 從公會 VASP 清單反查 base URL 取得，故 `callback_url` 為冗餘（有欄位無 payload/觸發定義、流程圖未使用） | Slack 提問 |
 
 #### v2.2 已定案補述
 
