@@ -1057,7 +1057,7 @@ private_info = {
 | Polkadot | polkadot | `polkadot:91b171bb158e2d3848fa23a9f1c25182` | 正式 |
 | Tezos | tezos | `tezos:NetXdQprcVkpaWU` | 正式 |
 | Cardano | cardano | `cip34:1-764824073` | **待核對**（network-magic 待確認） |
-| Tron | tron | （待 CAIP namespace 註冊） | **待核對**（Tron namespace 尚未併入 CAIP registry） |
+| Tron | tron | `tron:mainnet` | 正式 |
 
 ### 4.5 支援的資產類型 **[v2.2：改採 CAIP-19]**
 
@@ -1080,7 +1080,7 @@ private_info = {
 | XTZ | Tezos | `tezos:NetXdQprcVkpaWU/slip44:1729` |
 | ADA | Cardano | `cip34:1-764824073/slip44:1815`（鏈 ID 待核對） |
 | SOL | Solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501`（待核對） |
-| TRX | Tron | 待核對（Tron namespace 未註冊；slip44=195） |
+| TRX | Tron | `tron:mainnet/token:trx` |
 
 **代幣（CAIP-19 `erc20`，Ethereum mainnet 範例）**
 
@@ -1095,13 +1095,15 @@ private_info = {
 | PAXG | `eip155:1/erc20:0x45804880de22913dafe09f4980848ece6ecbaf78` |
 | MAX | `eip155:1/erc20:0xe7976c4efc60d9f4c200cc1bcef1a1e3b02c73e7` |
 
+**TRON 資產表示法**：TRX 與 TRC-10 token 使用 `tron:mainnet/token:<Asset_ID_or_Ticker>`；TRC-20 token 使用 `tron:mainnet/erc20:<Smart_Contract_Address>`。
+
 **多鏈穩定幣範例**
 
 | symbol | 鏈 | `asset_id`（CAIP-19） |
 |------|------|------|
 | USDC | Polygon（native） | `eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359` |
 | USDC | Solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
-| USDT | Tron（TRC-20） | 待核對（合約 `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`，表示法待定） |
+| USDT | Tron（TRC-20） | `tron:mainnet/erc20:TR7NHqjeKQxGTCi8qWoZY4pL6MuXjN6eiZ` |
 
 ### 4.6 需要 Memo/Tag 的網路 **[v2.0 新增]**
 
@@ -1517,7 +1519,7 @@ def sign(method, path, body, shared_secret):
 | 19 | Slack | 3.3 / 4.3 | 新增 `transaction.amount_twd`（等值新台幣，建議必填）作為自律規範門檻判斷依據；`amount_usd` 降為純國際參考；大額門檻對照表改以 `amount_twd` 為準 | Bito（幣託 Lido） |
 | 20 | Slack | 3.5 GET /transfers/{id} | 釐清 `originating_vasp` 與 `beneficiary_vasp` 為 Response 必回欄位，補 Response Fields 表 | MaiCoin |
 | 21 | Slack | 3.6 PATCH /transfers/{id} | 釐清前置狀態須為 `accepted`、可更新 `transaction` 欄位僅 `tx_hash`/`block_number`/`vout`、PII 補正改走 `amend` | MaiCoin |
-| 22 | PR #7 + Review | 4.3 / 4.4 / 4.5 資料模型 | 鏈/資產識別**改採 CAIP-2 / CAIP-19 標準**：registry 表改為 CAIP-2 chain_id + CAIP-19 asset_id 對照（取代冗長列舉）；API payload 以 `chain_id`(CAIP-2)、`asset_id`(CAIP-19) 為正規識別；短名 `network` 過渡期保留為別名，完整切換 CAIP-only 規劃於 v2.3；Tron/Cardano CAIP 值標 provisional 待核對 | PR #7（MaiCoin Pia）+ Code Review（a00012025 提議 CAIP） |
+| 22 | PR #7 + Review | 4.3 / 4.4 / 4.5 資料模型 | 鏈/資產識別**改採 CAIP-2 / CAIP-19 標準**：registry 表改為 CAIP-2 chain_id + CAIP-19 asset_id 對照（取代冗長列舉）；API payload 以 `chain_id`(CAIP-2)、`asset_id`(CAIP-19) 為正規識別；短名 `network` 過渡期保留為別名，完整切換 CAIP-only 規劃於 v2.3；Cardano CAIP 值仍標 provisional 待核對；Tron 採 `tron:mainnet` 與 `tron:mainnet/token:*`、`tron:mainnet/erc20:*` | PR #7（MaiCoin Pia）+ Code Review（a00012025 提議 CAIP） |
 | 23 | Slack | 6a 點對點測試計畫（新節） | 新增測試計畫：Phase A（協定互通）/ Phase B（鏈上流程）分階段、前置準備、A0–B3 測試案例、認證簽章 sample（`examples/tr_sign_sample.py`，HMAC 已驗證跨工具一致） | Bonnie、Wegin |
 
 #### v2.2 已定案補述

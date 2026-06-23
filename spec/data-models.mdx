@@ -197,7 +197,7 @@ confirm_beneficiary:
 | Polkadot | polkadot | `polkadot:91b171bb158e2d3848fa23a9f1c25182` | 正式 |
 | Tezos | tezos | `tezos:NetXdQprcVkpaWU` | 正式 |
 | Cardano | cardano | `cip34:1-764824073` | **待核對**（network-magic 待 hitripod 確認） |
-| Tron | tron | （待 CAIP namespace 註冊） | **待核對**（Tron namespace 尚未併入 CAIP registry） |
+| Tron | tron | `tron:mainnet` | 正式 |
 
 ## 支援的資產類型 [v2.2：改採 CAIP-19]
 
@@ -226,7 +226,7 @@ confirm_beneficiary:
 | XTZ | Tezos | `tezos:NetXdQprcVkpaWU/slip44:1729` |
 | ADA | Cardano | `cip34:1-764824073/slip44:1815`（鏈 ID 待核對） |
 | SOL | Solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501`（Solana namespace 未定義原生幣表示法，待核對） |
-| TRX | Tron | 待核對（Tron namespace 未註冊；slip44=195） |
+| TRX | Tron | `tron:mainnet/token:trx` |
 
 **代幣（CAIP-19 `erc20`，Ethereum mainnet 範例）**
 
@@ -241,13 +241,15 @@ confirm_beneficiary:
 | PAXG | `eip155:1/erc20:0x45804880de22913dafe09f4980848ece6ecbaf78` |
 | MAX | `eip155:1/erc20:0xe7976c4efc60d9f4c200cc1bcef1a1e3b02c73e7` |
 
+**TRON 資產表示法**：TRX 與 TRC-10 token 使用 `tron:mainnet/token:<Asset_ID_or_Ticker>`；TRC-20 token 使用 `tron:mainnet/erc20:<Smart_Contract_Address>`。
+
 **多鏈穩定幣範例**
 
 | symbol | 鏈 | `asset_id`（CAIP-19） |
 |------|------|------|
 | USDC | Polygon（native） | `eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359` |
 | USDC | Solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
-| USDT | Tron（TRC-20） | 待核對（合約 `TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`，namespace 表示法待定） |
+| USDT | Tron（TRC-20） | `tron:mainnet/erc20:TR7NHqjeKQxGTCi8qWoZY4pL6MuXjN6eiZ` |
 
 ## 需要 Memo/Tag 的網路 [v2.0 新增]
 
