@@ -15,11 +15,11 @@ originator:
   "address": "string (blockchain address, at least one of account_id or address required)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "national_id | passport | lei | tax_id | business_registration",
-    "number": "string",
-    "country": "string (ISO 3166-1 alpha-2)"
+    "type": "lei | tax_id | business_registration (法人專用；自然人不帶 type/number)",
+    "number": "string (法人統編 / LEI / 登記字號)",
+    "country": "string (ISO 3166-1 alpha-2；自然人於大額交易帶國籍)"
   },
-  "date_of_birth": "string (YYYY or YYYY-MM or YYYY-MM-DD)",
+  "date_of_birth": "string (YYYY-MM-DD, 完整出生年月日)",
   "place_of_birth": "string",
   "physical_address": {
     "country": "string (ISO 3166-1 alpha-2, e.g. TW)",
@@ -39,11 +39,11 @@ beneficiary:
   "address": "string (blockchain address, at least one of account_id or address required)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "national_id | passport | lei | tax_id | business_registration",
-    "number": "string",
-    "country": "string (ISO 3166-1 alpha-2)"
+    "type": "lei | tax_id | business_registration (法人專用；自然人不帶 type/number)",
+    "number": "string (法人統編 / LEI / 登記字號)",
+    "country": "string (ISO 3166-1 alpha-2；自然人於大額交易帶國籍)"
   },
-  "date_of_birth": "string (YYYY or YYYY-MM or YYYY-MM-DD)",
+  "date_of_birth": "string (YYYY-MM-DD, 完整出生年月日)",
   "place_of_birth": "string",
   "physical_address": {
     "country": "string (ISO 3166-1 alpha-2, e.g. TW)",
@@ -54,10 +54,10 @@ beneficiary:
 
 ### Identification Types
 
+`identification`（type/number）**僅法人適用**，且僅在大額交易（等值 TWD ≥ 30,000）時必填。自然人不帶 `identification.type` / `number`。
+
 | Type | 適用主體 | 說明 | 法人優先順序 |
 |------|---------|------|--------------|
-| national_id | 自然人 | 身分證字號 | - |
-| passport | 自然人 | 護照號碼 | - |
 | lei | 法人 | **[v2.1 新增]** Legal Entity Identifier（法人識別碼） | 1（最優先） |
 | tax_id | 法人 | **[v2.1 新增]** 統一編號 | 2 |
 | business_registration | 法人 | **[v2.1 新增]** 公司登記字號 | 3 |
@@ -67,20 +67,32 @@ beneficiary:
 </Note>
 
 <Warning>
+**[v2.2 第五次技術會議] 移除自然人證件號碼（MaiCoin 提案）**
+
+依證期局提供之反洗錢辦法草案，自然人辨識**未納入**身分證字號及護照號碼，故移除 `identification.type` 的 `national_id`、`passport` 兩種類型。自然人改以業者配發之 **`account_id`（帳戶編碼）** 辨識；大額交易（≥ 30,000 TWD）另帶 `identification.country`（國籍）、`date_of_birth`、`place_of_birth`、`physical_address`，但**不帶 `type` / `number`**。
+
+**`name` 欄位的來源依用戶證件類型認定**：身分證 → 中文姓名；護照 → 羅馬拼音；居留證 → 居留證上之名字。居留證僅作為 `name` 之來源依據，因自然人不交換證件號碼，故**不另設居留證 identification type**。
+</Warning>
+
+<Warning>
 **[v2.1 Breaking Change]** 移除舊有的 `company_registration` 類型。v2.1 起法人登記字號一律使用 `business_registration`。由於 v2.1 規格尚未有任何實作，此變更不需過渡期。
 </Warning>
 
-### date_of_birth 格式 [v2.1 變更]
+### date_of_birth 格式 [v2.2 第五次技術會議變更]
 
-`date_of_birth` 欄位允許以下三種格式（至少須提供年份）：
+`date_of_birth` 須為**完整出生年月日** `YYYY-MM-DD`：
 
 | 格式 | 範例 | 說明 |
 |------|------|------|
-| `YYYY` | `"1990"` | 至少須提供 |
-| `YYYY-MM` | `"1990-05"` | best effort |
-| `YYYY-MM-DD` | `"1990-05-15"` | 完整日期 |
+| `YYYY-MM-DD` | `"1990-05-15"` | **必填格式（完整出生年月日）** |
 
-驗證用正規表達式：`^\d{4}(-\d{2}(-\d{2})?)?$`
+驗證用正規表達式：`^\d{4}-\d{2}-\d{2}$`
+
+<Warning>
+**[v2.2 第五次技術會議] 改為完整出生年月日（MaiCoin 提案）**
+
+依證期局提供之反洗錢辦法草案，僅接受完整出生日期。原 v2.1「至少提供年份」（接受 `YYYY` / `YYYY-MM`）之放寬規則**作廢**，一律須帶 `YYYY-MM-DD`。
+</Warning>
 
 ### physical_address 結構 [v2.1 變更]
 
@@ -119,6 +131,14 @@ beneficiary:
 <Note>
 **背景**：交易所在處理客戶虛擬資產發送時，可能從水庫地址（omnibus/pool address）發送，而非分配給發起人獨一無二的區塊鏈地址。經公會秘書處與主管機關確認，自律規範允許以帳戶編碼替代區塊鏈地址，因帳戶編碼與用戶為 1:1 對應。此做法亦與國際慣例一致（歐盟 TFR、新加坡 PSN02 皆採 account number or blockchain address）。
 </Note>
+
+<Warning>
+**[v2.2 第五次技術會議] 欄位 key 恆存、空值以空字串表示**
+
+為符合自律規範「須有此資訊」之文字、並保持 schema 形狀穩定與 transaction log 完整，`account_id` 與 `address` 之 **JSON key 一律必須存在**（不省略、不設為 Optional）。若某值依上表情境確實取不到（例：水庫地址無對應 `account_id`、或受益方端發起時尚未取得對方帳戶編碼），**該值以空字串 `""` 表示**；接收方須將空字串視為「未提供」，改抓另一個可用欄位判斷。
+
+> 自律規範對「錢包資訊」之確切定義（`account_id` 與 `address` 是否須兩者皆有值，或可擇一）由法遵與證期局持續釐清；屆時僅調整「value 何時允許為空」，**欄位 key 結構不變**。
+</Warning>
 
 ## Confirm Beneficiary（確認後回傳之受益人資訊）
 

@@ -926,11 +926,11 @@ private_info = {
   "address": "string (blockchain address, at least one of account_id or address required)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "national_id | passport | lei | tax_id | business_registration",
-    "number": "string",
-    "country": "string (ISO 3166-1 alpha-2)"
+    "type": "lei | tax_id | business_registration (法人專用；自然人不帶 type/number)",
+    "number": "string (法人統編 / LEI / 登記字號)",
+    "country": "string (ISO 3166-1 alpha-2；自然人於大額交易帶國籍)"
   },
-  "date_of_birth": "string (YYYY or YYYY-MM or YYYY-MM-DD)",
+  "date_of_birth": "string (YYYY-MM-DD, 完整出生年月日)",
   "place_of_birth": "string",
   "physical_address": {
     "country": "string (ISO 3166-1 alpha-2, e.g. TW)",
@@ -949,11 +949,11 @@ private_info = {
   "address": "string (blockchain address, at least one of account_id or address required)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "national_id | passport | lei | tax_id | business_registration",
-    "number": "string",
-    "country": "string (ISO 3166-1 alpha-2)"
+    "type": "lei | tax_id | business_registration (法人專用；自然人不帶 type/number)",
+    "number": "string (法人統編 / LEI / 登記字號)",
+    "country": "string (ISO 3166-1 alpha-2；自然人於大額交易帶國籍)"
   },
-  "date_of_birth": "string (YYYY or YYYY-MM or YYYY-MM-DD)",
+  "date_of_birth": "string (YYYY-MM-DD, 完整出生年月日)",
   "place_of_birth": "string",
   "physical_address": {
     "country": "string (ISO 3166-1 alpha-2, e.g. TW)",
@@ -985,6 +985,8 @@ private_info = {
 | 兩者皆有 | 必填 | 必填 | 最佳實務 |
 
 > **背景**：交易所在處理客戶虛擬資產發送時，可能從水庫地址（omnibus/pool address）發送，而非分配給發起人獨一無二的區塊鏈地址。經公會秘書處與主管機關確認，自律規範允許以帳戶編碼替代區塊鏈地址，因帳戶編碼與用戶為 1:1 對應。此做法亦與國際慣例一致（歐盟 TFR、新加坡 PSN02 皆採 account number or blockchain address）。
+
+> **[v2.2 第五次技術會議] 欄位 key 恆存、空值以空字串表示**：為符合自律規範「須有此資訊」之文字並保持 schema 穩定，`account_id` 與 `address` 之 JSON key **一律必須存在**（不省略、不設 Optional）。某值確實取不到時以空字串 `""` 表示，接收方須將空字串視為「未提供」。自律規範對兩者是否皆須有值（或可擇一）由法遵持續釐清，屆時僅調整「value 何時允許為空」，**欄位 key 結構不變**。
 
 #### physical_address 大額交易必填規則 **[v2.2 釐清]**
 
@@ -1434,6 +1436,7 @@ def sign(method, path, body, shared_secret):
 | 2.1 | 2026-03-26 | 第三次技術會議決議：見下方 v2.1 詳細變更列表 | KryptoGO |
 | 2.1.1 | 2026-04-10 | RSA+AES 加密、confirm 條件必填、移除 company_registration：見下方 v2.1.1 詳細變更列表 | KryptoGO |
 | 2.2 | 2026-05-11 | 第四次技術會議決議：見下方 v2.2 詳細變更列表 | KryptoGO |
+| 2.2 | 2026-06-29 | 第五次技術會議收斂（凍結前最後確認）：移除自然人證件號碼、`date_of_birth` 收緊為完整 `YYYY-MM-DD`、`name` 來源依證件類型、`account_id`/`address` key 恆存空值用 `""` | KryptoGO |
 
 ### v2.0 變更明細
 
