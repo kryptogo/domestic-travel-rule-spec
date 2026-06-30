@@ -219,10 +219,7 @@ X-Nonce: {unique_random_string_32_chars}
       "expires_at": "2025-01-01T00:00:00Z"
     }
   ],
-  "endpoints": {
-    "address_verify": "https://api.vasp-b.com/travel-rule/v1/address/verify",
-    "transfer": "https://api.vasp-b.com/travel-rule/v1/transfer"
-  },
+  "base_url": "https://api.vasp-b.com/travel-rule/v1",
   "api_version": "2.2",
   "status": "active",
   "config_version": 3,
@@ -242,7 +239,7 @@ X-Nonce: {unique_random_string_32_chars}
 | registered_services | array | Y | 註冊業務類型列表（見下表） |
 | supported_assets | array | Y | 支援的資產列表；每筆以 CAIP-2 `chain_id` 與 CAIP-19 `asset_id` 為正規識別，`network` 為過渡期別名、`symbol` 僅供顯示 |
 | public_keys | array | Y | 用於加密通訊的公鑰列表 **[v2.0 變更：由單一物件改為陣列]** |
-| endpoints | object | Y | API 端點 URL |
+| base_url | string | Y | API base URL；Phase A 所需端點一律由本規格固定 path 組成（如 `/health`、`/vasp/info`、`/address/verify`、`/transfer`、`/transfers/{id}/confirm`、`GET`/`PATCH /transfers/{id}`、`/transfers/{id}/amend`） |
 | api_version | string | Y | 支援的 API 版本 |
 | status | string | Y | 狀態：active / maintenance / inactive |
 | config_version | integer | Y | **[v2.1 新增]** 設定檔版本號（遞增），用於偵測 VASP 資訊是否有變更 |
@@ -409,7 +406,7 @@ X-Nonce: {unique_random_string_32_chars}
 
 ```json
 {
-  "transfer_id": "tr_20240121_001",
+  "transfer_id": "550e8400-e29b-41d4-a716-446655440000",
   "transaction": {
     "tx_hash": null,
     "network": "ethereum",
@@ -444,7 +441,7 @@ X-Nonce: {unique_random_string_32_chars}
 
 > **關於 `private_info.ciphertext` 解密後內容**
 >
-> `POST /v1/transfer` 的 `private_info.ciphertext` 解密後為一個 JSON 物件，包含 `Originator` 與 `Beneficiary` 兩個欄位：
+> `POST /transfer` 的 `private_info.ciphertext` 解密後為一個 JSON 物件，包含 `Originator` 與 `Beneficiary` 兩個欄位：
 >
 > ```json
 > {
@@ -502,7 +499,7 @@ private_info = {
 | transaction.chain_id | string | Y | CAIP-2 chain_id（如 `eip155:1`），鏈的正規識別碼 |
 | transaction.asset_id | string | Y | CAIP-19 asset_id（如 `eip155:1/erc20:0x...`），可精確區分 wrapped/bridged |
 | transaction.amount | string | Y | 轉帳金額（原幣別數量） |
-| transaction.amount_twd | string | 建議必填 | **[v2.2 新增]** 等值新台幣金額。**作為自律規範門檻判斷依據**（如大額交易 ≥ 30,000 TWD），以發送方依交易當下匯率認定為準 |
+| transaction.amount_twd | string | Y | **[v2.2 新增]** 等值新台幣金額。**作為自律規範門檻判斷依據**（如大額交易 ≥ 30,000 TWD），以發送方依交易當下匯率認定為準 |
 | transaction.amount_usd | string | N | 等值美元金額（純國際對齊參考，不作為法規門檻判斷依據） |
 | transaction.memo | string | N | **[v2.0 新增]** Memo / Destination Tag |
 | transaction.originated_at | string | Y | 交易發起時間 |
@@ -523,11 +520,11 @@ private_info = {
 
 > **[v2.2 變更] transfer_id 命名規則（提案 7）**
 >
-> `transfer_id` 由**發起方 VASP 自行定義**，不再強制 `tr_{yyyyMMDD}_{流水號}` 格式（流水號跨 VASP 並發易碰撞）。
+> `transfer_id` 由**發起方 VASP 自行定義**，不再強制固定 prefix 或日期流水號格式（流水號跨 VASP 並發易碰撞）。
 >
 > - **長度上限 36 字元**（與 UUID 等長）
 > - 在發起方 VASP 範圍內唯一即可；因 Header 已帶 `X-VASP-ID`，故 `(X-VASP-ID, transfer_id)` 組合即全域唯一
-> - **建議**採用 UUID 或 ULID（不可預測、含時間序），範例：`tr_01HV5K8XYZP3QRT4ABCD1234EF`
+> - **建議**採用 UUID 或 ULID（不可預測、含時間序），範例：`550e8400-e29b-41d4-a716-446655440000`（UUID）或 `01HV5K8XYZP3QRT4ABCD1234EF`（ULID）
 
 > **[v2.2 新增] expires_at 生命週期（提案 10、11）**
 >
@@ -562,7 +559,7 @@ private_info = {
 
 ```json
 {
-  "transfer_id": "tr_20240121_001",
+  "transfer_id": "550e8400-e29b-41d4-a716-446655440000",
   "status": "pending",
   "received_at": "2024-01-21T10:00:05Z",
   "message": "Transfer request received, pending verification"
@@ -582,7 +579,7 @@ private_info = {
 
 ### 3.4 確認/拒絕交易
 
-#### POST /transfers/{transfer_id}/confirm
+#### POST /transfers/{id}/confirm
 
 受益方 VASP 確認或拒絕 Travel Rule 資料。
 
@@ -606,7 +603,7 @@ private_info = {
 
 > **關於 `private_info.ciphertext` 解密後內容**
 >
-> `POST /v1/transfer/confirm` 的 `private_info.ciphertext` 解密後為 `Confirm Beneficiary` model（定義見 §4.1）：
+> `POST /transfers/{id}/confirm` 的 `private_info.ciphertext` 解密後為 `Confirm Beneficiary` model（定義見 §4.1）：
 >
 > ```json
 > {
@@ -616,12 +613,12 @@ private_info = {
 > }
 > ```
 >
-> **加密方向反轉**：與 `POST /v1/transfer` 不同，此處 envelope 由**受益方 VASP** 加密、**發起方 VASP** 解密。因此：
+> **加密方向反轉**：與 `POST /transfer` 不同，此處 envelope 由**受益方 VASP** 加密、**發起方 VASP** 解密。因此：
 >
-> - `encrypted_key` 用**發起方** VASP 的 RSA 公鑰封裝 AES key（與原 `POST /v1/transfer` 中使用的公鑰不同方向）
-> - 對應 `encryption.kid` 為**發起方**公鑰的 kid（透過 `GET /v1/vasp/info` 取得）
+> - `encrypted_key` 用**發起方** VASP 的 RSA 公鑰封裝 AES key（與原 `POST /transfer` 中使用的公鑰不同方向）
+> - 對應 `encryption.kid` 為**發起方**公鑰的 kid（透過 `GET /vasp/info` 取得）
 >
-> **Serialization**：plaintext 在送入 AES-256-GCM 前須 **UTF-8 encode 後傳入**；所有 envelope bytes（`encrypted_key` / `iv` / `auth_tag` / `ciphertext`）以 base64 編碼。詳細演算法相同於 §3.3 POST /v1/transfer 的 `private_info 組成流程`（僅 RSA 公鑰來自發起方而非受益方）。
+> **Serialization**：plaintext 在送入 AES-256-GCM 前須 **UTF-8 encode 後傳入**；所有 envelope bytes（`encrypted_key` / `iv` / `auth_tag` / `ciphertext`）以 base64 編碼。詳細演算法相同於 §3.3 POST /transfer 的 `private_info 組成流程`（僅 RSA 公鑰來自發起方而非受益方）。
 
 **Request - 拒絕**
 
@@ -645,7 +642,7 @@ private_info = {
 | private_info.auth_tag | string | **條件必填** | **[v2.1 新增]** 資料驗證標籤（`status=accepted` 時必填） |
 | private_info.ciphertext | string | **條件必填** | **[v2.1 新增]** AES 加密後的受益人資訊，內文由 `Confirm Beneficiary` model 組成（見 §4.1，`status=accepted` 時必填） |
 | encryption | object | **條件必填** | **[v2.2 補登]** Envelope 加密相關 metadata（`status=accepted` 時必填，因 envelope 解密需依此判斷 RSA private key） |
-| encryption.kid | string | **條件必填** | **[v2.2 補登]** 用於解開 `private_info.encrypted_key` 的**發起方** RSA 公鑰 ID，對應發起方 `GET /v1/vasp/info` 回傳之 `public_keys[].kid`（`status=accepted` 時必填）。注意加密方向反轉：與 `POST /v1/transfer` 中 `kid` 指向受益方公鑰不同，此處 `kid` 指向**發起方**公鑰 |
+| encryption.kid | string | **條件必填** | **[v2.2 補登]** 用於解開 `private_info.encrypted_key` 的**發起方** RSA 公鑰 ID，對應發起方 `GET /vasp/info` 回傳之 `public_keys[].kid`（`status=accepted` 時必填）。注意加密方向反轉：與 `POST /transfer` 中 `kid` 指向受益方公鑰不同，此處 `kid` 指向**發起方**公鑰 |
 | confirmed_at | string | **條件必填** | 確認時間（`status=accepted` 時必填） |
 | reject_code | string | **條件必填** | 拒絕代碼（`status=rejected` 時必填） |
 | reject_reason | string | N | 拒絕原因說明（建議填寫） |
@@ -688,7 +685,7 @@ private_info = {
 
 ```json
 {
-  "transfer_id": "tr_20240121_001",
+  "transfer_id": "550e8400-e29b-41d4-a716-446655440000",
   "status": "accepted",
   "updated_at": "2024-01-21T10:05:00Z"
 }
@@ -696,7 +693,7 @@ private_info = {
 
 ### 3.5 查詢交易狀態
 
-#### GET /transfers/{transfer_id}
+#### GET /transfers/{id}
 
 查詢特定 Travel Rule 交易的狀態。
 
@@ -704,7 +701,7 @@ private_info = {
 
 ```json
 {
-  "transfer_id": "tr_20240121_001",
+  "transfer_id": "550e8400-e29b-41d4-a716-446655440000",
   "status": "accepted",
   "transaction": {
     "tx_hash": "0x123abc...",
@@ -759,7 +756,7 @@ private_info = {
 
 ### 3.6 更新交易資訊
 
-#### PATCH /transfers/{transfer_id}
+#### PATCH /transfers/{id}
 
 更新交易資訊（如補充 tx_hash）。
 
@@ -818,7 +815,7 @@ private_info = {
 
 ```json
 {
-  "transfer_id": "tr_20240121_001",
+  "transfer_id": "550e8400-e29b-41d4-a716-446655440000",
   "status": "completed",
   "updated_at": "2024-01-21T10:10:00Z"
 }
@@ -826,7 +823,7 @@ private_info = {
 
 ### 3.6a 資料回補
 
-#### POST /transfers/{transfer_id}/amend
+#### POST /transfers/{id}/amend
 
 > **[v2.2 新增] 資料回補機制（提案 14）**
 
@@ -871,7 +868,7 @@ private_info = {
 
 ```json
 {
-  "transfer_id": "tr_20240121_001",
+  "transfer_id": "550e8400-e29b-41d4-a716-446655440000",
   "status": "pending",
   "updated_at": "2024-01-21T11:00:05Z"
 }
@@ -964,7 +961,7 @@ private_info = {
 
 #### Confirm Beneficiary（`/transfers/{id}/confirm` 回傳之受益人資訊）
 
-> **[v2.1.1 新增]** 受益方 VASP 完成驗證後，於 `POST /v1/transfer/confirm` 回傳此物件。為 `private_info.ciphertext` 解密後的明文內容。
+> **[v2.1.1 新增]** 受益方 VASP 完成驗證後，於 `POST /transfers/{id}/confirm` 回傳此物件。為 `private_info.ciphertext` 解密後的明文內容。
 
 ```json
 {
@@ -1509,7 +1506,7 @@ def sign(method, path, body, shared_secret):
 | 4 | 4 | 3.2 POST /address/verify | 驗證結果暫存 TTL 暫定 30 天，受益方 `config_version` 變更時強制失效 | 幣託 |
 | 5 | 5 | 3.2 / 3.7 | 新增廣播查詢例外情境處理：禁「timeout 即放行」、endpoint 可用性義務、`/health` healthy 須常規時間回應 | 拓荒數碼 |
 | 6 | 6 | 7.6 附錄 | 新增境外地址 / 自託管錢包自我聲明「建議格式」（非強制） | 幣託 |
-| 7 | 7 | 3.3 POST /transfer | `transfer_id` 改發起方自訂、長度上限 36 字元；不再強制 `tr_{yyyyMMDD}_{流水號}` | 跨鏈 |
+| 7 | 7 | 3.3 POST /transfer | `transfer_id` 改發起方自訂、長度上限 36 字元；不再強制日期流水號格式 | 跨鏈 |
 | 8 | 8 | 3.4 confirm | `beneficiary.name` 處理：Phase 1 僅儲存不強制比對，accepted/rejected 依 originator info 審查 | XREX |
 | 9 | 9 | 4.1 資料模型 | 釐清 ≥ 30,000 TWD 等值時 `physical_address` 必填，新增金額門檻對照表 | MaiCoin |
 | 10 | 10 | 3.3 POST /transfer | 新增 `expires_at` 生命週期定義：採廣播優先原則 | 跨鏈 |
@@ -1521,12 +1518,13 @@ def sign(method, path, body, shared_secret):
 | 16 | 16 | 2. 認證 | 確認 6 月點對點測試不用 mTLS；mTLS 已於 PR #6 自規格移除 | MaiCoin |
 | 17 | errata | 3.4 POST /transfers/{id}/confirm | 補登 `encryption.kid` 欄位至 request schema（v2.1.1 已於說明文字提及 envelope 加密方向反轉與發起方 kid 來源，但 request 範例與欄位表遺漏實際欄位定義）；`status=accepted` 時必填，指向**發起方** RSA 公鑰 ID | PR #8 Review |
 | 18 | Slack | 3.3 POST /transfer | 新增「鏈上廣播與 TR 資料時序：接收方判斷規則」——承認 confirm-first 與 broadcast-first 兩種合法時序；broadcast-first 下接收方偵測到無對應 `transfer_id` 的 inbound 時應保留 grace window（建議＝`expires_at`，預設 24h），期間不得僅因 TR 未到即放行/退回；補件機制維持各家自律、不新增 supplement 端點 | ZONE Wallet、MaiCoin |
-| 19 | Slack | 3.3 / 4.3 | 新增 `transaction.amount_twd`（等值新台幣，建議必填）作為自律規範門檻判斷依據；`amount_usd` 降為純國際參考；大額門檻對照表改以 `amount_twd` 為準 | Bito（幣託 Lido） |
+| 19 | Slack | 3.3 / 4.3 | 新增 `transaction.amount_twd`（等值新台幣，必填）作為自律規範門檻判斷依據；`amount_usd` 降為純國際參考；大額門檻對照表改以 `amount_twd` 為準 | Bito（幣託 Lido） |
 | 20 | Slack | 3.5 GET /transfers/{id} | 釐清 `originating_vasp` 與 `beneficiary_vasp` 為 Response 必回欄位，補 Response Fields 表 | MaiCoin |
 | 21 | Slack | 3.6 PATCH /transfers/{id} | 釐清前置狀態須為 `accepted`、可更新 `transaction` 欄位僅 `tx_hash`/`block_number`/`vout`、PII 補正改走 `amend` | MaiCoin |
 | 22 | PR #7 + Review | 4.3 / 4.4 / 4.5 資料模型 | 鏈/資產識別**改採 CAIP-2 / CAIP-19 標準**：registry 表改為 CAIP-2 chain_id + CAIP-19 asset_id 對照（取代冗長列舉）；API payload 以 `chain_id`(CAIP-2)、`asset_id`(CAIP-19) 為正規識別；短名 `network` 過渡期保留為別名，完整切換 CAIP-only 規劃於 v2.3；Cardano CAIP 值仍標 provisional 待核對；Tron 採 `tron:mainnet` 與 `tron:mainnet/token:*`、`tron:mainnet/erc20:*` | PR #7（MaiCoin Pia）+ Code Review（a00012025 提議 CAIP） |
 | 23 | Slack | 6a 點對點測試計畫（新節） | 新增測試計畫：Phase A（協定互通）/ Phase B（鏈上流程）分階段、前置準備、A0–B3 測試案例、認證簽章 sample（`examples/tr_sign_sample.py`，HMAC 已驗證跨工具一致） | Bonnie、Wegin |
 | 24 | Slack | 3.3 POST /transfer | **移除 `callback_url` 欄位**：受益方回傳結果係直接呼叫發起方 `POST /transfers/{id}/confirm`（鏈上資訊走 `PATCH`），發起方端點以 `X-VASP-ID` 從公會 VASP 清單反查 base URL 取得，故 `callback_url` 為冗餘（有欄位無 payload/觸發定義、流程圖未使用） | Slack 提問 |
+| 25 | errata | 3.1 / 3.3 / 3.4–3.6a | 回應 PR #8 review：統一 canonical endpoints（`/transfer`、`/transfers/{id}/confirm`、`GET`/`PATCH /transfers/{id}`、`/transfers/{id}/amend`）、`GET /vasp/info` 改提供 `base_url` 而非部分端點清單、`transaction.amount_twd` 改為必填、`transfer_id` 範例改為不超過 36 字元的 UUID/ULID | PR #8 Review |
 
 #### v2.2 已定案補述
 

@@ -116,7 +116,7 @@ v2.2 規格將於 **2026-06-28 凍結**，**2026-06-29 起進入各家點對點�
 | 4 | 4 | POST /address/verify | 驗證結果暫存機制：TTL 暫定 30 天，受益方 `config_version` 變更時強制失效 | 幣託 |
 | 5 | 5 | POST /address/verify / GET /health | 新增廣播查詢例外情境處理：禁止「timeout 即放行」訂為共同標準、endpoint 可用性義務、`/health` healthy 時須常規時間內回應（秒數 TBD） | 拓荒數碼 |
 | 6 | 6 | 附錄 | 新增境外地址 / 自託管錢包自我聲明「建議格式」（非強制） | 幣託 |
-| 7 | 7 | POST /transfer | `transfer_id` 改為發起方自訂、長度上限 36 字元；不再強制 `tr_{yyyyMMDD}_{流水號}`，建議 UUID/ULID | 跨鏈 |
+| 7 | 7 | POST /transfer | `transfer_id` 改為發起方自訂、長度上限 36 字元；不再強制日期流水號格式，建議 UUID/ULID | 跨鏈 |
 | 8 | 8 | POST /transfers/{id}/confirm | `beneficiary.name` 處理：Phase 1 僅儲存不強制比對，accepted/rejected 依 originator info 審查 | XREX |
 | 9 | 9 | 資料模型 | 釐清大額交易（≥ 30,000 TWD 等值）`physical_address` 為必填，新增金額門檻對照表 | MaiCoin |
 | 10 | 10 | POST /transfer | 新增 `expires_at` 生命週期定義：適用接收檢查與 confirm 期限、不適用已 accepted 後 PATCH、採廣播優先原則 | 跨鏈 |
@@ -128,12 +128,13 @@ v2.2 規格將於 **2026-06-28 凍結**，**2026-06-29 起進入各家點對點�
 | 16 | 16 | 認證與安全 | 確認 6 月點對點測試不用 mTLS；mTLS 已於 PR #6 自規格移除 | MaiCoin |
 | 17 | errata | POST /transfers/{id}/confirm | 補登 `encryption.kid` 欄位至 request schema（v2.1.1 已於說明文字提及 envelope 加密方向反轉與發起方 kid 來源，但 request 範例與欄位表遺漏實際欄位定義）；`status=accepted` 時必填，指向**發起方** RSA 公鑰 ID | PR #8 Review |
 | 18 | Slack | POST /transfer | 新增「鏈上廣播與 TR 資料時序：接收方判斷規則」——承認 confirm-first 與 broadcast-first 兩種合法時序；broadcast-first 下接收方偵測到無對應 `transfer_id` 的 inbound 時應保留 grace window（建議＝`expires_at`，預設 24h），期間不得僅因 TR 未到即放行/退回；補件機制維持各家自律、不新增 supplement 端點 | ZONE Wallet、MaiCoin |
-| 19 | Slack | POST /transfer / 資料模型 | 新增 `transaction.amount_twd`（等值新台幣，建議必填）作為自律規範門檻判斷依據；`amount_usd` 降為純國際參考；大額門檻對照表改以 `amount_twd` 為準 | Bito（幣託 Lido） |
+| 19 | Slack | POST /transfer / 資料模型 | 新增 `transaction.amount_twd`（等值新台幣，必填）作為自律規範門檻判斷依據；`amount_usd` 降為純國際參考；大額門檻對照表改以 `amount_twd` 為準 | Bito（幣託 Lido） |
 | 20 | Slack | GET /transfers/{id} | 釐清 `originating_vasp` 與 `beneficiary_vasp` 為 Response 必回欄位，補 Response Fields 表 | MaiCoin |
 | 21 | Slack | PATCH /transfers/{id} | 釐清前置狀態須為 `accepted`、可更新 `transaction` 欄位僅 `tx_hash`/`block_number`/`vout`、PII 補正改走 `amend` | MaiCoin |
 | 22 | PR #7 + Review | 資料模型（Transaction / 網路 / 資產） | 鏈/資產識別**改採 CAIP-2 / CAIP-19 標準**：registry 表改為 CAIP-2 `chain_id` + CAIP-19 `asset_id` 對照（取代冗長列舉清單，回應 reviewer 維護性意見）；API payload 以 `chain_id`（CAIP-2）與 `asset_id`（CAIP-19）為正規識別；短名 `network` 過渡期保留為別名，完整切換 CAIP-only 規劃於 v2.3；Cardano CAIP 值仍標 provisional 待核對；Tron 採 `tron:mainnet` 與 `tron:mainnet/token:*`、`tron:mainnet/erc20:*` | PR #7（MaiCoin Pia）+ Code Review（a00012025 提議 CAIP-2/CAIP-19） |
 | 23 | Slack | 點對點測試計畫（新頁） | 新增 `spec/testing.mdx` 測試計畫：Phase A（協定互通）/ Phase B（鏈上流程）分階段、前置準備 checklist、A0–B3 測試案例、認證簽章可執行 sample（`examples/tr_sign_sample.py`，已驗證 HMAC 跨工具一致） | Bonnie、Wegin（測試 case/起迄/前置準備提問） |
 | 24 | Slack | POST /transfer | **移除 `callback_url` 欄位**：受益方回傳結果係直接呼叫發起方 `POST /transfers/{id}/confirm`（鏈上資訊走 `PATCH`），發起方端點以 `X-VASP-ID` 從公會 VASP 清單反查 base URL 取得，故 `callback_url` 為冗餘（有欄位無 payload/觸發定義、流程圖未使用） | Slack 提問 |
+| 25 | errata | GET /vasp/info / POST /transfer / transfer endpoints | 回應 PR #8 review：統一 canonical endpoints（`/transfer`、`/transfers/{id}/confirm`、`GET`/`PATCH /transfers/{id}`、`/transfers/{id}/amend`）、`GET /vasp/info` 改提供 `base_url` 而非部分端點清單、`transaction.amount_twd` 改為必填、`transfer_id` 範例改為不超過 36 字元的 UUID/ULID | PR #8 Review |
 
 ### v2.2 已定案補述
 

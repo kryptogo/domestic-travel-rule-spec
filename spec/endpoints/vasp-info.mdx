@@ -75,10 +75,7 @@ X-Nonce: {unique_random_string_32_chars}
       "expires_at": "2025-01-01T00:00:00Z"
     }
   ],
-  "endpoints": {
-    "address_verify": "https://api.vasp-b.com/travel-rule/v1/address/verify",
-    "transfer": "https://api.vasp-b.com/travel-rule/v1/transfer"
-  },
+  "base_url": "https://api.vasp-b.com/travel-rule/v1",
   "api_version": "2.2",
   "status": "active",
   "config_version": 3,
@@ -98,7 +95,7 @@ X-Nonce: {unique_random_string_32_chars}
 | registered_services | array | Y | 註冊業務類型列表（見下表） |
 | supported_assets | array | Y | 支援的資產列表；每筆以 CAIP-2 `chain_id` 與 CAIP-19 `asset_id` 為正規識別，`network` 為過渡期別名、`symbol` 僅供顯示 |
 | public_keys | array | Y | 用於加密通訊的公鑰列表 **[v2.0 變更：由單一物件改為陣列]** |
-| endpoints | object | Y | API 端點 URL |
+| base_url | string | Y | API base URL；Phase A 所需端點一律由本規格固定 path 組成（如 `/health`、`/vasp/info`、`/address/verify`、`/transfer`、`/transfers/{id}/confirm`、`GET`/`PATCH /transfers/{id}`、`/transfers/{id}/amend`） |
 | api_version | string | Y | 支援的 API 版本 |
 | status | string | Y | 狀態：active / maintenance / inactive |
 | config_version | integer | Y | **[v2.1 新增]** 設定檔版本號（遞增），用於偵測 VASP 資訊是否有變更 |

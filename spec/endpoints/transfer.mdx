@@ -10,7 +10,7 @@ icon: "paper-plane"
 
 ```json
 {
-  "transfer_id": "tr_20240121_001",
+  "transfer_id": "550e8400-e29b-41d4-a716-446655440000",
   "transaction": {
     "tx_hash": null,
     "network": "ethereum",
@@ -105,7 +105,7 @@ private_info = {
 | transaction.chain_id | string | Y | CAIP-2 chain_id（如 `eip155:1`），鏈的正規識別碼，見[資料模型](/spec/data-models) |
 | transaction.asset_id | string | Y | CAIP-19 asset_id（如 `eip155:1/erc20:0x...`），資產的正規識別碼，可精確區分 wrapped/bridged |
 | transaction.amount | string | Y | 轉帳金額（原幣別數量） |
-| transaction.amount_twd | string | 建議必填 | **[v2.2 新增]** 等值新台幣金額。**作為自律規範門檻判斷依據**（如大額交易 ≥ 30,000 TWD），以發送方依交易當下匯率認定為準 |
+| transaction.amount_twd | string | Y | **[v2.2 新增]** 等值新台幣金額。**作為自律規範門檻判斷依據**（如大額交易 ≥ 30,000 TWD），以發送方依交易當下匯率認定為準 |
 | transaction.amount_usd | string | N | 等值美元金額（純國際對齊參考，不作為法規門檻判斷依據） |
 | transaction.memo | string | N | **[v2.0 新增]** Memo / Destination Tag |
 | transaction.originated_at | string | Y | 交易發起時間 |
@@ -131,11 +131,11 @@ private_info = {
 <Note>
 **第四次技術會議決議（提案 7）**
 
-`transfer_id` 由**發起方 VASP 自行定義**，不再強制採用 `tr_{yyyyMMDD}_{流水號}` 格式（流水號在跨 VASP 並發時易碰撞）。
+`transfer_id` 由**發起方 VASP 自行定義**，不再強制採用固定 prefix 或日期流水號格式（流水號在跨 VASP 並發時易碰撞）。
 
 - **長度上限 36 字元**（與 UUID 等長）
 - 在發起方 VASP 範圍內唯一即可；因 API 請求 Header 已帶 `X-VASP-ID`，故 `(X-VASP-ID, transfer_id)` 組合即為全域唯一
-- **建議**採用 UUID 或 ULID 等隨機識別碼（不可預測、含時間序）；範例：`tr_01HV5K8XYZP3QRT4ABCD1234EF`
+- **建議**採用 UUID 或 ULID 等隨機識別碼（不可預測、含時間序）；範例：`550e8400-e29b-41d4-a716-446655440000`（UUID）或 `01HV5K8XYZP3QRT4ABCD1234EF`（ULID）
 </Note>
 
 ## expires_at 生命週期 [v2.2 新增]
@@ -188,7 +188,7 @@ private_info = {
 
 ```json
 {
-  "transfer_id": "tr_20240121_001",
+  "transfer_id": "550e8400-e29b-41d4-a716-446655440000",
   "status": "pending",
   "received_at": "2024-01-21T10:00:05Z",
   "message": "Transfer request received, pending verification"
