@@ -555,6 +555,13 @@ private_info = {
 > - grace window 內補達資料一律以 `transfer_id` 判重；逾時仍無對應 TR 資料者，後續處理由各家依內控自律規範設計。
 > - **補件「機制」由各家依自律規範內控實作，規格不新增 supplement 端點**。broadcast-first 補件可重用 `POST /transfer`（以 `transfer_id` 判重）；`rejected` 後 PII 補正走 `POST /transfers/{id}/amend`。`/address/verify` 與 `/transfer` 的 timeout 處理見提案 5。
 
+> **[v2.2 第五次技術會議] 確認逾時的鏈上放行條件（發送方，決議 4-1）**
+>
+> 因證期局現行不接受資料補件機制，境內 VASP 間轉帳原則上須待受益方回覆 `accepted`（完成 `confirm`，流程第 10 步）後，發送方才得執行鏈上轉帳。逾時未回之例外：
+> - **得放行**：(1) 受益方已回 `accepted`；或 (2) 受益方在發送方自訂等待時間內未回 `confirm`（server 故障／overload／未發送等），但發送方能以**可辨識方式**（鏈上地址分析、過去與該地址往來紀錄、使用者提供且經查核之資訊）獨立確認 (a) 受益方 VASP 身分（確為境內同業）且 (b) 受益地址歸屬，並**留存佐證紀錄**。
+> - **不得放行**：受益方回 `rejected`；或逾時未回且發送方無法辨識地址所屬 VASP 與名稱對應關係。
+> - 等待時間長度由各家依內控自訂；惟同 `/address/verify`，**不得將「timeout 即放行」當作免辨識的捷徑**。本條為「廣播優先原則」於境內無補件機制下的收斂：broadcast 仍可先於 `confirm`，但缺少 `accepted` 時放行上鏈，發送方須自負辨識與留存責任。
+
 **Response**
 
 ```json
@@ -1433,7 +1440,7 @@ def sign(method, path, body, shared_secret):
 | 2.1 | 2026-03-26 | 第三次技術會議決議：見下方 v2.1 詳細變更列表 | KryptoGO |
 | 2.1.1 | 2026-04-10 | RSA+AES 加密、confirm 條件必填、移除 company_registration：見下方 v2.1.1 詳細變更列表 | KryptoGO |
 | 2.2 | 2026-05-11 | 第四次技術會議決議：見下方 v2.2 詳細變更列表 | KryptoGO |
-| 2.2 | 2026-06-29 | 第五次技術會議收斂（凍結前最後確認）：移除自然人證件號碼、`date_of_birth` 收緊為完整 `YYYY-MM-DD`、`name` 來源依證件類型、`account_id`/`address` key 恆存空值用 `""` | KryptoGO |
+| 2.2 | 2026-06-29 | 第五次技術會議收斂（凍結前最後確認）：移除自然人證件號碼、`date_of_birth` 收緊為完整 `YYYY-MM-DD`、`name` 來源依證件類型、`account_id`/`address` key 恆存空值用 `""`、新增發送方確認逾時鏈上放行條件 | KryptoGO |
 
 ### v2.0 變更明細
 
