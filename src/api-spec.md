@@ -35,7 +35,11 @@
 | 2.1.1 | 2026-04-10 | RSA+AES 加密機制（`private_info`）、`/transfers/{id}/confirm` 受益人資訊改為條件必填、錯誤回應識別碼欄位釐清、**移除 `company_registration`**（breaking，由 `business_registration` 取代） |
 | 2.2 | 2026-05-11 | 第四次技術會議：vasp_id 命名規則、地址暫存與例外情境、transfer_id 格式、expires_at 生命週期、廣播失敗同步、vout 欄位、資料回補端點、shared_secret 共享機制；會後 Slack 收斂：broadcast-first 接收方規則、`amount_twd`、GET/PATCH 欄位釐清、CAIP-2/CAIP-19 欄位統一（`network` 過渡期保留） |
 
-> **規格凍結公告**：v2.2 將於 **2026-06-28 凍結**、**2026-06-29 起進入各家點對點測試**。凍結後僅接受 errata（錯字／文義澄清），新欄位納入下一版。
+| 2.2.1 | 2026-07-29 | 法規對齊修訂（凍結後 hotfix）：轉出人完整地址 `address_line`、`identification` 收斂為僅法人、`date_of_birth` 限定轉出人自然人、新增必填欄位總表、門檻「逾／以上」用語釐清 |
+
+> **規格凍結公告**：v2.2 已於 **2026-06-28 凍結**、**2026-06-29 起進入各家點對點測試**。凍結後僅接受 errata（錯字／文義澄清），新欄位納入下一版。
+>
+> **凍結例外 — 合規 hotfix**：規格與主管機關法規（含草案）牴觸而構成合規缺口者，得以 patch 版號（如 v2.2.1）於凍結期內修補，惟須符合三項條件：(1) 純 additive，既有欄位語意不變、既有 payload 不失效；(2) 不影響進行中之 Phase A／Phase B 互測；(3) 新增之必填校驗設過渡期，過渡期內接收方不得據以拒絕。此例外不適用於功能增強，功能增強一律進 v2.3。
 
 ### 1.4 術語定義
 
@@ -926,19 +930,24 @@ private_info = {
 {
   "type": "natural_person | legal_person",
   "name": "string",
-  "account_id": "string (at least one of account_id or address required)",
-  "address": "string (blockchain address, at least one of account_id or address required)",
+  "account_id": "string (key 必存；值取不到時為空字串)",
+  "address": "string (blockchain address；key 必存；值取不到時為空字串)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "lei | tax_id | business_registration (法人專用；自然人不帶 type/number)",
-    "number": "string (法人統編 / LEI / 登記字號)",
-    "country": "string (ISO 3166-1 alpha-2；自然人於大額交易帶國籍)"
+    "type": "lei | tax_id | business_registration (法人專用；自然人不帶)",
+    "number": "string (法人統編 / LEI / 登記字號；自然人不帶)",
+    "country": "string (ISO 3166-1 alpha-2；官方識別碼之發證/登記國別，法人專用)"
   },
-  "date_of_birth": "string (YYYY-MM-DD, 完整出生年月日)",
-  "place_of_birth": "string",
+  "date_of_birth": "string (YYYY-MM-DD, 完整出生年月日；自然人於門檻以上必填)",
+  "place_of_birth": "string (選填，不因門檻而必填)",
   "physical_address": {
-    "country": "string (ISO 3166-1 alpha-2, e.g. TW)",
-    "city": "string (city name)"
+    "country": "string (ISO 3166-1 alpha-2, e.g. TW；門檻以上必填)",
+    "city": "string (city / town name；門檻以上必填)",
+    "address_line": ["string (完整地址文字，最多 7 行；轉出人於門檻以上必填)"],
+    "country_sub_division": "string (縣市 / 州省，選填)",
+    "street_name": "string (選填)",
+    "building_number": "string (選填)",
+    "post_code": "string (選填)"
   }
 }
 ```
@@ -949,22 +958,67 @@ private_info = {
 {
   "type": "natural_person | legal_person",
   "name": "string",
-  "account_id": "string (at least one of account_id or address required)",
-  "address": "string (blockchain address, at least one of account_id or address required)",
+  "account_id": "string (key 必存；值取不到時為空字串)",
+  "address": "string (blockchain address；key 必存；值取不到時為空字串)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "lei | tax_id | business_registration (法人專用；自然人不帶 type/number)",
-    "number": "string (法人統編 / LEI / 登記字號)",
-    "country": "string (ISO 3166-1 alpha-2；自然人於大額交易帶國籍)"
+    "type": "lei | tax_id | business_registration (法人專用；自然人不帶)",
+    "number": "string (法人統編 / LEI / 登記字號；自然人不帶)",
+    "country": "string (ISO 3166-1 alpha-2；官方識別碼之發證/登記國別，法人專用)"
   },
-  "date_of_birth": "string (YYYY-MM-DD, 完整出生年月日)",
-  "place_of_birth": "string",
+  "date_of_birth": "string (YYYY-MM-DD；接收人不要求，選填)",
+  "place_of_birth": "string (選填，不因門檻而必填)",
   "physical_address": {
-    "country": "string (ISO 3166-1 alpha-2, e.g. TW)",
-    "city": "string (city name)"
+    "country": "string (ISO 3166-1 alpha-2, e.g. TW；門檻以上必填)",
+    "city": "string (city / town name；門檻以上必填)",
+    "address_line": ["string (完整地址文字；接收人不要求，選填)"],
+    "country_sub_division": "string (縣市 / 州省，選填)",
+    "street_name": "string (選填)",
+    "building_number": "string (選填)",
+    "post_code": "string (選填)"
   }
 }
 ```
+
+#### 必填欄位總表 **[v2.2.1 新增]**
+
+> **單一真相來源（Single Source of Truth）**：本表為 originator / beneficiary 欄位必填規則的唯一權威來源，取代散落於各節註解的說明。落實第五次技術會議 A4／A5 決議。
+>
+> 法源：《提供虛擬資產服務之事業或人員防制洗錢及打擊資恐辦法》（草案）第七條第一項第三款、《防制洗錢及打擊資恐注意事項自律規範》第十二條之一。
+
+**關鍵原則：法規對「轉出人（originator）」與「接收人（beneficiary）」的要求是不對稱的。** 轉出人須提供**完整地址**，接收人僅須提供**國家及城市名稱**。發送方對自己客戶有完整 KYC，對交易對手客戶通常僅有片段資訊，故要求層級不同（與 FATF R.16 一致）。
+
+**所有金額（不分門檻）**
+
+| 欄位 | 轉出人 | 接收人 | 說明 |
+|------|--------|--------|------|
+| `type` | 必填 | 必填 | 規格層欄位，供接收方判斷驗證分支 |
+| `name` | 必填 | 必填 | 法規「姓名或名稱」 |
+| `account_id` | **key 必存** | **key 必存** | 法規「錢包資訊」；值取不到時為空字串 `""` |
+| `address` | **key 必存** | **key 必存** | 同上 |
+| `memo` | 選填 | 選填 | 需 Memo/Tag 之鏈必填 |
+
+門檻以下**僅需上述欄位**；`identification`、`date_of_birth`、`place_of_birth`、`physical_address` 整段**不出現**。
+
+**門檻以上（`transaction.amount_twd` ≥ 30,000）**
+
+| 欄位 | 轉出人—自然人 | 轉出人—法人 | 接收人—自然人 | 接收人—法人 |
+|------|--------------|------------|--------------|------------|
+| `identification.type` | 不帶 | **必填** | 不帶 | **必填** |
+| `identification.number` | 不帶 | **必填** | 不帶 | **必填** |
+| `identification.country` | 不帶 | 選填 | 不帶 | 選填 |
+| `date_of_birth` | **必填** | 不適用 | 不要求 | 不適用 |
+| `place_of_birth` | 選填 | 不適用 | 選填 | 不適用 |
+| `physical_address.country` | **必填** | **必填** | **必填** | **必填** |
+| `physical_address.city` | **必填** | **必填** | **必填** | **必填** |
+| `physical_address.address_line` | **必填**（住所地） | **必填**（設立登記地） | 不要求 | 不要求 |
+| `physical_address` 其餘子欄位 | 選填 | 選填 | 選填 | 選填 |
+
+> **常見誤解（各家實作前請先核對）**
+>
+> 1. **`date_of_birth` 不是「自然人一律必填」**，而是**僅轉出人自然人**必填。辦法草案對接收人自然人僅要求住所地之國家及城市，未要求出生日期；發送方實務上亦通常無法取得交易對手客戶之出生日期。
+> 2. **`identification.country` 不是「自然人國籍」**。辦法草案未要求自然人國籍，該欄位語意為法人官方識別碼之發證／登記國別，自然人不帶。
+> 3. **接收人不需要完整地址**。要求接收人提供 `address_line` 屬超出法規範圍之個資蒐集，且發送方通常無此資料。
 
 #### Confirm Beneficiary（`/transfers/{id}/confirm` 回傳之受益人資訊）
 
@@ -992,20 +1046,53 @@ private_info = {
 
 > **[v2.2 第五次技術會議] 欄位 key 恆存、空值以空字串表示**：為符合自律規範「須有此資訊」之文字並保持 schema 穩定，`account_id` 與 `address` 之 JSON key **一律必須存在**（不省略、不設 Optional）。某值確實取不到時以空字串 `""` 表示，接收方須將空字串視為「未提供」。自律規範對兩者是否皆須有值（或可擇一）由法遵持續釐清，屆時僅調整「value 何時允許為空」，**欄位 key 結構不變**。
 
-#### physical_address 大額交易必填規則 **[v2.2 釐清]**
+#### physical_address 結構與必填規則 **[v2.2.1 變更]**
 
-> **第四次技術會議決議（提案 9）**
+`physical_address` 為結構化物件（與其他 PII 欄位一同透過外層 `private_info` envelope 加密傳輸）。欄位命名對齊 **IVMS101**（interVASP Messaging Standard），以利未來境外 Travel Rule 對接直接映射：
+
+| 欄位 | 類型 | 轉出人（門檻以上） | 接收人（門檻以上） | 說明 |
+|------|------|------|------|------|
+| `country` | string | **必填** | **必填** | ISO 3166-1 alpha-2 國家碼（如 `"TW"`） |
+| `city` | string | **必填** | **必填** | 城市／鄉鎮名稱 |
+| `address_line` | string[] | **必填** | 選填 | **[v2.2.1 新增]** 完整地址文字，最多 7 行。轉出人自然人填**住所地之地址**、法人填**設立登記地之地址** |
+| `country_sub_division` | string | 選填 | 選填 | **[v2.2.1 新增]** 縣市／州省 |
+| `street_name` | string | 選填 | 選填 | **[v2.2.1 新增]** 街道名稱 |
+| `building_number` | string | 選填 | 選填 | **[v2.2.1 新增]** 門牌號碼 |
+| `post_code` | string | 選填 | 選填 | **[v2.2.1 新增]** 郵遞區號 |
+
+門檻以下 `physical_address` 整段不出現。
+
+> **[v2.2.1 合規修正] 轉出人須提供完整地址**
 >
-> 依《防制洗錢及打擊資恐注意事項自律規範》第十二條之一，移轉虛擬資產等值新臺幣三萬元以上者，應包含接收人之居住、出生或註冊營業之國家及城鎮名稱。對應欄位為 `physical_address`（v2.1 已加入結構化 `{country, city}`）：
+> **問題**：v2.1 將 `physical_address` 結構化時，依據《自律規範》第十二條之一——該條僅規範**接收人**之「國家及城鎮名稱」，故 schema 只有 `{country, city}`。惟《洗錢辦法》（草案）第七條第一項第三款對**轉出人**要求**完整地址**，v2.2 及先前版本無對應欄位可承載，構成合規缺口。
 
-| 交易金額（等值 TWD） | `originator.physical_address` | `beneficiary.physical_address` |
+**法源對照**：
+
+| 對象 | 辦法草案第七條第一項第三款要求 | 對應欄位 |
 |------|------|------|
-| ≥ 30,000 | **必填** | **必填** |
-| < 30,000 | optional | optional |
+| 轉出人—自然人 | 出生日期及其**住所地之地址** | `date_of_birth` + `physical_address.address_line` |
+| 轉出人—法人 | 官方識別碼及其**設立登記地之地址** | `identification.type/number` + `physical_address.address_line` |
+| 接收人—自然人 | 其住所地之**國家及城市名稱** | `physical_address.country` + `.city` |
+| 接收人—法人 | 官方識別碼、其設立登記地之**國家及城市名稱** | `identification.type/number` + `physical_address.country` + `.city` |
 
-> **門檻判斷基準 [v2.2 釐清]**：本門檻以 **`transaction.amount_twd`（等值新台幣）** 為準，由發送方依交易當下匯率認定；不以 `amount_usd` 判斷，避免各家美元匯率不一導致同筆交易門檻結果不一致。
+> **為何 `address_line` 為必填、結構化子欄位為選填**：中文地址結構（縣市→區→路→段→巷→弄→號→樓）與西式 `<number> <street>` 不同構，若強制各家拆解為 `street_name` / `building_number`，欄位名稱雖對齊、實際拆法必然分歧，反而製造新的互通性問題。故以 `address_line` 承載完整地址字串為必填主力，結構化子欄位保留供有國際對接需求者選填。
 
-> `city` 欄位的標準化用詞（如 `"New Taipei City"` vs `"新北市"`）待確認，將參考 ISO 3166-2:TW 或其他標準。
+> **過渡期驗證行為**：`address_line` 為 v2.2 凍結後新增欄位。**於 2026 年 10 月過渡期結束前，接收方不得僅因轉出人缺少 `address_line` 而 `rejected`**，以免中斷各家 Phase A／Phase B 互測與過渡期導入。自 **2026 年 11 月正式上線起**始納入必填校驗。
+
+**門檻判斷基準與「逾」／「以上」用語差異 [v2.2.1 釐清]**
+
+門檻以 **`transaction.amount_twd`（等值新台幣）** 為準，由發送方依交易當下匯率認定；不以 `amount_usd` 判斷，避免各家美元匯率不一導致同筆交易門檻結果不一致。
+
+兩份法源對門檻的用語不同：
+
+| 法源 | 用語 | 數學意義 |
+|------|------|------|
+| 《自律規範》第十二條之一 | 三萬元**以上** | `>= 30000`（依中央法規標準法慣例，「以上／以下」俱連本數）|
+| 《洗錢辦法》（草案）第七條 | **逾**新臺幣三萬元 | `> 30000`（不含本數）|
+
+> **規格採 `amount_twd >= 30000`**，理由：此為嚴格 superset，涵蓋「逾」之所有情形，不會漏報；差異僅在「恰好等於 30,000」單一點會多帶欄位，而該情形本即落於自律規範「以上」範圍內。辦法草案定稿後由法制小組確認是否收斂為 `>`。**各家實作請勿自行改用 `>`**——同一筆交易在兩家判出不同門檻結果，是互測階段最須避免的分歧。
+
+> **`city` 用詞標準化（未定案）**：`city` 之標準化用詞（如 `"New Taipei City"` vs `"新北市"`）仍待公會統一，將參考 ISO 3166-2:TW 或其他標準。本次 v2.2.1 **不做決定**，維持現狀待後續版本收斂。
 
 ### 4.2 VASP
 
@@ -1322,7 +1409,10 @@ flowchart TD
 | A5 | 發送 Transfer | `POST /transfer`（envelope 加密） | `pending`、對方可解密 |
 | A6 | 受益方確認 | `POST /transfers/{id}/confirm`（帶發起方 `encryption.kid`） | `accepted` |
 | A7 | 拒絕 + 回補 | `rejected` → `amend` 重送 | 回 `pending` |
-| A8 | 大額欄位（負向） | `amount_twd ≥ 30000` 缺 `physical_address` | 必填校驗拒絕 |
+| A8a | 大額欄位—轉出人（負向） | `amount_twd ≥ 30000` 但 `originator.physical_address` 缺 `country`／`city` | 必填校驗拒絕 |
+| A8b | 大額欄位—接收人（負向） | `amount_twd ≥ 30000` 但 `beneficiary.physical_address` 缺 `country`／`city` | 必填校驗拒絕 |
+| A10 | **[v2.2.1]** 接收人不需完整地址（正向） | `amount_twd ≥ 30000`，`beneficiary.physical_address` 僅帶 `country` + `city`、**不帶** `address_line` | **應接受**——法規對接收人僅要求國家及城市，不得因缺 `address_line` 拒絕 |
+| A11 | **[v2.2.1]** 轉出人完整地址（正向） | `amount_twd ≥ 30000`，`originator.physical_address.address_line` 帶完整住所地／設立登記地地址 | 對方能正確解密並取得 `address_line` 陣列內容 |
 | A9 | 狀態查詢 | `GET /transfers/{id}` | 含必填 vasp 欄位 |
 | B1 | 鏈上補登 | `PATCH` 補真實 testnet `tx_hash`（UTXO 帶 `vout`） | `completed` |
 | B2 | broadcast-first | 先廣播、TR 後到 | grace window 內不誤放行/退回 |
@@ -1441,6 +1531,24 @@ def sign(method, path, body, shared_secret):
 | 2.1.1 | 2026-04-10 | RSA+AES 加密、confirm 條件必填、移除 company_registration：見下方 v2.1.1 詳細變更列表 | KryptoGO |
 | 2.2 | 2026-05-11 | 第四次技術會議決議：見下方 v2.2 詳細變更列表 | KryptoGO |
 | 2.2 | 2026-06-29 | 第五次技術會議收斂（凍結前最後確認）：移除自然人證件號碼、`date_of_birth` 收緊為完整 `YYYY-MM-DD`、`name` 來源依證件類型、`account_id`/`address` key 恆存空值用 `""`、新增發送方確認逾時鏈上放行條件 | KryptoGO |
+| 2.2.1 | 2026-07-29 | **法規對齊修訂（凍結後 hotfix）**：轉出人完整地址（`address_line`）、`identification` 收斂為僅法人、`date_of_birth` 限定轉出人自然人、新增必填欄位總表、門檻「逾／以上」用語釐清：見下方 v2.2.1 詳細變更列表 | KryptoGO |
+
+### v2.2.1 變更明細（法規對齊修訂，凍結後 hotfix）
+
+> **版本編號說明**：v2.2 凍結規則為「僅接受 errata，新欄位納入 v2.3」。本次修訂新增 `physical_address` 子欄位，嚴格而言超出 errata 定義，仍以 **patch 版號 v2.2.1** 交付而非 v2.3，理由：(1) 性質為合規缺口修補而非功能增強——v2.2 及先前版本無欄位可承載辦法草案第七條對轉出人「完整地址」之要求，屬規格與法規牴觸；(2) 純 additive，既有欄位語意不變、既有 payload 不失效，各家 v2.2 實作不需返工，不影響 Phase A／Phase B 互測；(3) 保留 v2.3 之既定語意（`network` 短名移除、CAIP-only 切換）；(4) 既有前例——v2.1.1 亦以 patch 版號交付含 breaking change 之修訂。
+>
+> **過渡期保護**：`address_line` 於 2026 年 10 月過渡期結束前不納入必填校驗，接收方不得僅因缺此欄位而 `rejected`；2026 年 11 月正式上線起強制。
+
+| # | Section | 變更內容 | 來源 |
+|---|---------|---------|------|
+| 1 | 4.1 physical_address | **新增 `address_line`（string[]，最多 7 行）**，承載轉出人自然人「住所地之地址」／法人「設立登記地之地址」之完整地址；**轉出人於門檻以上必填，接收人不要求**。另新增選填子欄位 `country_sub_division`、`street_name`、`building_number`、`post_code`，命名對齊 IVMS101 | 法遵（Lucy）指出 v2.2 僅 `{country, city}` 不符辦法草案第七條對轉出人之完整地址要求 |
+| 2 | 4.1 identification | **`identification` 整段收斂為僅法人適用**。v2.2 原記載「自然人於大額交易帶 `identification.country`（國籍）」，惟辦法草案對自然人未要求國籍，屬無法源之個資蒐集，故移除；`country` 語意改為官方識別碼之發證／登記國別 | ZONE Wallet 提問「`identification.country` 適用條件待確認」 |
+| 3 | 4.1 date_of_birth | **明確限定為「轉出人—自然人」於門檻以上必填**。辦法草案對接收人自然人僅要求住所地之國家及城市，未要求出生日期；原文字未區分主體，易被實作為「自然人一律必填」 | 各家必填欄位表比對發現 |
+| 4 | 4.1（新增章節） | **新增「必填欄位總表」**，以 `轉出人／接收人` × `自然人／法人` × `門檻上下` 三維度攤平所有欄位必填規則，作為單一真相來源 | 落實第五次技術會議 A4／A5 決議（原決議未以表格形式落地）；XREX 要求公會提供統一版本 |
+| 5 | 4.1 physical_address | **釐清「逾三萬元」與「三萬元以上」之用語差異**：自律規範第十二條之一為「以上」（`>=`）、辦法草案第七條為「逾」（`>`）。規格維持 `amount_twd >= 30000`（嚴格 superset，不漏報），並明文要求各家勿自行改用 `>` | ZONE Wallet 提問 |
+| 6 | 測試案例 | A8 拆分為 A8a／A8b，區分轉出人與接收人之校驗；新增 A10（接收人不因缺 `address_line` 被拒）、A11（轉出人完整地址正向） | 配合本次變更 |
+
+> **本次明確不變更之項目**（避免各家誤判）：接收人 `physical_address` 維持 `{country, city}`（法規僅要求國家及城市，要求完整地址屬超收個資）；門檻判斷維持 `>= 30000`；`place_of_birth` 維持選填；`account_id`／`address` 之 key 恆存＋空字串哨兵（第五次會議決議）不動；`identification.type` 列舉值不變；不回復自然人證件號碼欄位；加密機制（RSA + AES hybrid）不動；`city` 中英文標準化維持未定案。
 
 ### v2.0 變更明細
 
