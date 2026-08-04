@@ -11,19 +11,24 @@ originator:
 {
   "type": "natural_person | legal_person",
   "name": "string",
-  "account_id": "string (at least one of account_id or address required)",
-  "address": "string (blockchain address, at least one of account_id or address required)",
+  "account_id": "string (key 必存；值取不到時為空字串)",
+  "address": "string (blockchain address；key 必存；值取不到時為空字串)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "lei | tax_id | business_registration (法人專用；自然人不帶 type/number)",
-    "number": "string (法人統編 / LEI / 登記字號)",
-    "country": "string (ISO 3166-1 alpha-2；自然人於大額交易帶國籍)"
+    "type": "lei | tax_id | business_registration (法人專用；自然人不帶)",
+    "number": "string (法人統編 / LEI / 登記字號；自然人不帶)",
+    "country": "string (ISO 3166-1 alpha-2；官方識別碼之發證/登記國別，法人專用)"
   },
-  "date_of_birth": "string (YYYY-MM-DD, 完整出生年月日)",
-  "place_of_birth": "string",
+  "date_of_birth": "string (YYYY-MM-DD, 完整出生年月日；自然人於門檻以上必填)",
+  "place_of_birth": "string (選填，不因門檻而必填)",
   "physical_address": {
-    "country": "string (ISO 3166-1 alpha-2, e.g. TW)",
-    "city": "string (city name)"
+    "country": "string (ISO 3166-1 alpha-2, e.g. TW；門檻以上必填)",
+    "city": "string (city / town name；門檻以上必填)",
+    "address_line": ["string (完整地址文字，最多 7 行；轉出人於門檻以上必填)"],
+    "country_sub_division": "string (縣市 / 州省，選填)",
+    "street_name": "string (選填)",
+    "building_number": "string (選填)",
+    "post_code": "string (選填)"
   }
 }
 ```
@@ -35,22 +40,73 @@ beneficiary:
 {
   "type": "natural_person | legal_person",
   "name": "string",
-  "account_id": "string (at least one of account_id or address required)",
-  "address": "string (blockchain address, at least one of account_id or address required)",
+  "account_id": "string (key 必存；值取不到時為空字串)",
+  "address": "string (blockchain address；key 必存；值取不到時為空字串)",
   "memo": "string (Memo/Tag, if applicable)",
   "identification": {
-    "type": "lei | tax_id | business_registration (法人專用；自然人不帶 type/number)",
-    "number": "string (法人統編 / LEI / 登記字號)",
-    "country": "string (ISO 3166-1 alpha-2；自然人於大額交易帶國籍)"
+    "type": "lei | tax_id | business_registration (法人專用；自然人不帶)",
+    "number": "string (法人統編 / LEI / 登記字號；自然人不帶)",
+    "country": "string (ISO 3166-1 alpha-2；官方識別碼之發證/登記國別，法人專用)"
   },
-  "date_of_birth": "string (YYYY-MM-DD, 完整出生年月日)",
-  "place_of_birth": "string",
+  "date_of_birth": "string (YYYY-MM-DD；接收人不要求，選填)",
+  "place_of_birth": "string (選填，不因門檻而必填)",
   "physical_address": {
-    "country": "string (ISO 3166-1 alpha-2, e.g. TW)",
-    "city": "string (city name)"
+    "country": "string (ISO 3166-1 alpha-2, e.g. TW；門檻以上必填)",
+    "city": "string (city / town name；門檻以上必填)",
+    "address_line": ["string (完整地址文字；接收人不要求，選填)"],
+    "country_sub_division": "string (縣市 / 州省，選填)",
+    "street_name": "string (選填)",
+    "building_number": "string (選填)",
+    "post_code": "string (選填)"
   }
 }
 ```
+
+## 必填欄位總表 [v2.2.1 新增]
+
+<Note>
+**單一真相來源（Single Source of Truth）**
+
+本表為 originator / beneficiary 欄位必填規則的**唯一權威來源**，取代散落於各節註解的說明。落實第五次技術會議 A4 / A5「明確標示 originator/beneficiary 各欄位必填/選填」之決議。
+
+法源：《提供虛擬資產服務之事業或人員防制洗錢及打擊資恐辦法》（草案）第七條第一項第三款、《防制洗錢及打擊資恐注意事項自律規範》第十二條之一。
+</Note>
+
+**關鍵原則：法規對「轉出人（originator）」與「接收人（beneficiary）」的要求是不對稱的。** 轉出人須提供**完整地址**，接收人僅須提供**國家及城市名稱**。發送方對自己客戶有完整 KYC，對交易對手客戶通常僅有片段資訊，故要求層級不同（與 FATF R.16 一致）。
+
+### 所有金額（不分門檻）
+
+| 欄位 | 轉出人 | 接收人 | 說明 |
+|------|--------|--------|------|
+| `type` | 必填 | 必填 | 規格層欄位，供接收方判斷驗證分支 |
+| `name` | 必填 | 必填 | 法規「姓名或名稱」 |
+| `account_id` | **key 必存** | **key 必存** | 法規「錢包資訊」；值取不到時為空字串 `""` |
+| `address` | **key 必存** | **key 必存** | 同上 |
+| `memo` | 選填 | 選填 | 需 Memo/Tag 之鏈必填（見下方章節） |
+
+門檻以下**僅需上述欄位**；`identification`、`date_of_birth`、`place_of_birth`、`physical_address` 整段**不出現**。
+
+### 門檻以上（`transaction.amount_twd` ≥ 30,000）
+
+| 欄位 | 轉出人—自然人 | 轉出人—法人 | 接收人—自然人 | 接收人—法人 |
+|------|--------------|------------|--------------|------------|
+| `identification.type` | 不帶 | **必填** | 不帶 | **必填** |
+| `identification.number` | 不帶 | **必填** | 不帶 | **必填** |
+| `identification.country` | 不帶 | 選填 | 不帶 | 選填 |
+| `date_of_birth` | **必填** | 不適用 | 不要求 | 不適用 |
+| `place_of_birth` | 選填 | 不適用 | 選填 | 不適用 |
+| `physical_address.country` | **必填** | **必填** | **必填** | **必填** |
+| `physical_address.city` | **必填** | **必填** | **必填** | **必填** |
+| `physical_address.address_line` | **必填**（住所地） | **必填**（設立登記地） | 不要求 | 不要求 |
+| `physical_address` 其餘子欄位 | 選填 | 選填 | 選填 | 選填 |
+
+<Warning>
+**常見誤解（各家實作前請先核對）**
+
+1. **`date_of_birth` 不是「自然人一律必填」**，而是**僅轉出人自然人**必填。辦法草案對接收人自然人僅要求住所地之國家及城市，未要求出生日期；發送方實務上亦通常無法取得交易對手客戶之出生日期。
+2. **`identification.country` 不是「自然人國籍」**。辦法草案未要求自然人國籍，該欄位語意為法人官方識別碼之發證／登記國別，自然人不帶。
+3. **接收人不需要完整地址**。要求接收人提供 `address_line` 屬超出法規範圍之個資蒐集，且發送方通常無此資料。
+</Warning>
 
 ### Identification Types
 
@@ -69,7 +125,9 @@ beneficiary:
 <Warning>
 **[v2.2 第五次技術會議] 移除自然人證件號碼（MaiCoin 提案）**
 
-依證期局提供之反洗錢辦法草案，自然人辨識**未納入**身分證字號及護照號碼，故移除 `identification.type` 的 `national_id`、`passport` 兩種類型。自然人改以業者配發之 **`account_id`（帳戶編碼）** 辨識；大額交易（≥ 30,000 TWD）另帶 `identification.country`（國籍）、`date_of_birth`、`place_of_birth`、`physical_address`，但**不帶 `type` / `number`**。
+依證期局提供之反洗錢辦法草案，自然人辨識**未納入**身分證字號及護照號碼，故移除 `identification.type` 的 `national_id`、`passport` 兩種類型。自然人改以業者配發之 **`account_id`（帳戶編碼）** 辨識；大額交易（≥ 30,000 TWD）另帶 `date_of_birth` 與 `physical_address`，但**不帶 `identification` 整段**（含 `type` / `number` / `country`）。
+
+**[v2.2.1 更正]** v2.2 原記載自然人於大額交易帶 `identification.country`（國籍），惟辦法草案第七條對自然人**未要求國籍**（轉出人自然人僅需出生日期與住所地之地址）。要求無法源之個資逾越蒐集必要範圍，故 v2.2.1 起 `identification` 整段**僅法人適用**，`country` 語意收斂為官方識別碼之發證／登記國別。
 
 **`name` 欄位的來源依用戶證件類型認定**：身分證 → 中文姓名；護照 → 羅馬拼音；居留證 → 居留證上之名字。居留證僅作為 `name` 之來源依據，因自然人不交換證件號碼，故**不另設居留證 identification type**。
 </Warning>
@@ -94,29 +152,63 @@ beneficiary:
 依證期局提供之反洗錢辦法草案，僅接受完整出生日期。原 v2.1「至少提供年份」（接受 `YYYY` / `YYYY-MM`）之放寬規則**作廢**，一律須帶 `YYYY-MM-DD`。
 </Warning>
 
-### physical_address 結構 [v2.1 變更]
+### physical_address 結構 [v2.2.1 變更]
 
-`physical_address` 由原本的單一字串改為結構化物件（與其他 PII 欄位一同透過外層 `private_info` envelope 加密傳輸）：
+`physical_address` 為結構化物件（與其他 PII 欄位一同透過外層 `private_info` envelope 加密傳輸）。欄位命名對齊 **IVMS101**（interVASP Messaging Standard），以利未來境外 Travel Rule 對接直接映射：
 
-| 欄位 | 類型 | 說明 |
-|------|------|------|
-| country | string | ISO 3166-1 alpha-2 國家碼（如 `"TW"`） |
-| city | string | 城鎮名稱 |
+| 欄位 | 類型 | 轉出人（門檻以上） | 接收人（門檻以上） | 說明 |
+|------|------|------|------|------|
+| `country` | string | **必填** | **必填** | ISO 3166-1 alpha-2 國家碼（如 `"TW"`） |
+| `city` | string | **必填** | **必填** | 城市／鄉鎮名稱 |
+| `address_line` | string[] | **必填** | 選填 | **[v2.2.1 新增]** 完整地址文字，最多 7 行。轉出人自然人填**住所地之地址**、法人填**設立登記地之地址** |
+| `country_sub_division` | string | 選填 | 選填 | **[v2.2.1 新增]** 縣市／州省 |
+| `street_name` | string | 選填 | 選填 | **[v2.2.1 新增]** 街道名稱 |
+| `building_number` | string | 選填 | 選填 | **[v2.2.1 新增]** 門牌號碼 |
+| `post_code` | string | 選填 | 選填 | **[v2.2.1 新增]** 郵遞區號 |
 
 <Warning>
-**[v2.2 釐清] 大額交易必填欄位（提案 9）**
+**[v2.2.1 合規修正] 轉出人須提供完整地址**
 
-依《防制洗錢及打擊資恐注意事項自律規範》第十二條之一，移轉虛擬資產等值新臺幣三萬元以上者，應包含接收人之居住、出生或註冊營業之國家及城鎮名稱。對應欄位為 `physical_address`（v2.1 已加入結構化 `{country, city}`），必填規則如下：
+**問題**：v2.1 將 `physical_address` 結構化時，依據《自律規範》第十二條之一——該條僅規範**接收人**之「國家及城鎮名稱」，故 schema 只有 `{country, city}`。惟《洗錢辦法》（草案）第七條第一項第三款對**轉出人**要求**完整地址**，v2.2 及先前版本無對應欄位可承載，構成合規缺口。
 
-| 交易金額（等值 TWD） | `originator.physical_address` | `beneficiary.physical_address` |
+**法源對照**：
+
+| 對象 | 辦法草案第七條第一項第三款要求 | 對應欄位 |
 |------|------|------|
-| ≥ 30,000 | **必填** | **必填** |
-| < 30,000 | optional | optional |
+| 轉出人—自然人 | 出生日期及其**住所地之地址** | `date_of_birth` + `physical_address.address_line` |
+| 轉出人—法人 | 官方識別碼及其**設立登記地之地址** | `identification.type/number` + `physical_address.address_line` |
+| 接收人—自然人 | 其住所地之**國家及城市名稱** | `physical_address.country` + `.city` |
+| 接收人—法人 | 官方識別碼、其設立登記地之**國家及城市名稱** | `identification.type/number` + `physical_address.country` + `.city` |
 
-**門檻判斷基準 [v2.2 釐清]**：本門檻以 **`transaction.amount_twd`（等值新台幣）** 為準，由發送方依交易當下匯率認定；不以 `amount_usd` 判斷，避免各家美元匯率不一導致同筆交易門檻結果不一致。
-
-`city` 欄位的標準化用詞（如 `"New Taipei City"` vs `"新北市"`）待確認，將參考 ISO 3166-2:TW 或其他標準。
+**為何 `address_line` 為必填、結構化子欄位為選填**：中文地址結構（縣市→區→路→段→巷→弄→號→樓）與西式 `<number> <street>` 不同構，若強制各家拆解為 `street_name` / `building_number`，欄位名稱雖對齊、實際拆法必然分歧，反而製造新的互通性問題。故以 `address_line` 承載完整地址字串為必填主力，結構化子欄位保留供有國際對接需求者選填。
 </Warning>
+
+<Note>
+**過渡期驗證行為**
+
+`address_line` 為 v2.2 凍結後新增欄位。**於 2026 年 10 月過渡期結束前，接收方不得僅因轉出人缺少 `address_line` 而 `rejected`**，以免中斷各家 Phase A / Phase B 互測與過渡期導入。自 **2026 年 11 月正式上線起**始納入必填校驗。
+</Note>
+
+<Note>
+**門檻判斷基準與「逾」／「以上」用語差異 [v2.2.1 釐清]**
+
+門檻以 **`transaction.amount_twd`（等值新台幣）** 為準，由發送方依交易當下匯率認定；不以 `amount_usd` 判斷，避免各家美元匯率不一導致同筆交易門檻結果不一致。
+
+兩份法源對門檻的用語不同：
+
+| 法源 | 用語 | 數學意義 |
+|------|------|------|
+| 《自律規範》第十二條之一 | 三萬元**以上** | `>= 30000`（依中央法規標準法慣例，「以上／以下」俱連本數）|
+| 《洗錢辦法》（草案）第七條 | **逾**新臺幣三萬元 | `> 30000`（不含本數）|
+
+**規格採 `amount_twd >= 30000`**，理由：此為嚴格 superset，涵蓋「逾」之所有情形，不會漏報；差異僅在「恰好等於 30,000」單一點會多帶欄位，而該情形本即落於自律規範「以上」範圍內。辦法草案定稿後由法制小組確認是否收斂為 `>`。**各家實作請勿自行改用 `>`**——同一筆交易在兩家判出不同門檻結果，是互測階段最須避免的分歧。
+</Note>
+
+<Note>
+**`city` 用詞標準化（未定案）**
+
+`city` 之標準化用詞（如 `"New Taipei City"` vs `"新北市"`）仍待公會統一，將參考 ISO 3166-2:TW 或其他標準。本次 v2.2.1 **不做決定**，維持現狀待後續版本收斂。
+</Note>
 
 ### account_id / address 條件式必填 [v2.1 新增]
 

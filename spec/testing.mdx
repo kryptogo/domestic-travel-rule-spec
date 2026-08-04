@@ -43,7 +43,11 @@ Phase A 一開始就能驗證「兩家系統能否互相認證、加解密、走
 
 ## 測試案例
 
-逐項對測並記錄結果。負向案例（A1、A2、A8）同樣重要——確保錯誤情境有正確回應。
+逐項對測並記錄結果。負向案例（A1、A2、A8a、A8b）同樣重要——確保錯誤情境有正確回應。
+
+<Note>
+**[v2.2.1] `address_line` 於過渡期不納入必填校驗**：A8a／A8b 僅校驗 `country` + `city`。轉出人 `address_line` 自 2026 年 11 月正式上線起才強制，過渡期內接收方不得僅因缺此欄位而 `rejected`（見 A10）。
+</Note>
 
 | # | 案例 | 動作 | 預期結果 |
 |---|------|------|---------|
@@ -55,8 +59,11 @@ Phase A 一開始就能驗證「兩家系統能否互相認證、加解密、走
 | A5 | **發送 Transfer** | `POST /transfer`，PII 以 RSA-OAEP + AES-256-GCM 加密為 `private_info` | `pending`；對方能以自家 private key 解密 envelope |
 | A6 | 受益方確認 | `POST /transfers/{id}/confirm`（`accepted`，帶**發起方** `encryption.kid`） | 狀態 `accepted` |
 | A7 | 拒絕 + 回補 | confirm `rejected` → `POST /transfers/{id}/amend` 補正 PII 重送 | 重新進入 `pending` |
-| A8 | 大額欄位（負向） | `amount_twd ≥ 30000` 但缺 `physical_address` | 必填校驗應拒絕 |
+| A8a | 大額欄位—轉出人（負向） | `amount_twd ≥ 30000` 但 `originator.physical_address` 缺 `country`／`city` | 必填校驗應拒絕 |
+| A8b | 大額欄位—接收人（負向） | `amount_twd ≥ 30000` 但 `beneficiary.physical_address` 缺 `country`／`city` | 必填校驗應拒絕 |
 | A9 | 狀態查詢 | `GET /transfers/{id}` | 回傳含必填 `originating_vasp` / `beneficiary_vasp` |
+| **A10** | **[v2.2.1]** 接收人不需完整地址（正向） | `amount_twd ≥ 30000`，`beneficiary.physical_address` 僅帶 `country` + `city`、**不帶** `address_line` | **應接受**——法規對接收人僅要求國家及城市，接收方不得因缺 `address_line` 而拒絕 |
+| **A11** | **[v2.2.1]** 轉出人完整地址（正向） | `amount_twd ≥ 30000`，`originator.physical_address.address_line` 帶完整住所地／設立登記地地址 | 對方能正確解密並取得 `address_line` 陣列內容 |
 | **B1** | 鏈上補登 | `PATCH /transfers/{id}` 補真實 testnet `tx_hash`（UTXO 鏈帶 `vout`） | 狀態 `completed` |
 | **B2** | broadcast-first | 先廣播、TR 後到，驗證接收方 grace window 行為 | grace window 內不誤放行/退回 |
 | **B3** | 廣播失敗 | `PATCH` status=`failed` + `failure_reason` | 狀態 `failed`，不卡無限等待 |
