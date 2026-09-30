@@ -285,7 +285,11 @@ confirm_beneficiary:
 <Note>
 **[v2.2 變更] 鏈識別改採 CAIP-2 標準（PR #7 Code Review 提議）**
 
-鏈以 [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) `chain_id`（格式 `namespace:reference`）為**正規識別碼**，填入 API payload 的 `chain_id`。短名 `network` 過渡期保留為別名，完整切換 CAIP-only 規劃於 v2.3。
+鏈以 [CAIP-2](https://chainagnostic.org/CAIPs/caip-2) `chain_id`（格式 `namespace:reference`）為**正規識別碼**，填入 API payload 的 `chain_id`。短名 `network` 過渡期保留為別名，移除時程另案確認。
+
+下表為本協議採用的識別碼。對尚無定稿 CAIP profile 的網路，請以本表的協議值互通，不可自行替換為其他提案值。
+
+**v2.3 提案**：Cardano 鏈 ID 及下列 TRX、ADA 資產 ID 的調整，須待對接 VASP 確認切換時點後生效；v2.2.1 既有 wire 值不可單方替換。
 </Note>
 
 | 通用名稱 | `network` 短名（過渡期別名） | `chain_id`（CAIP-2，正規） | 狀態 |
@@ -308,8 +312,8 @@ confirm_beneficiary:
 | EOS | eos | `antelope:aca376f206b8fc25a6ed44dbdc66547c` | 正式（namespace 為 `antelope`） |
 | Polkadot | polkadot | `polkadot:91b171bb158e2d3848fa23a9f1c25182` | 正式 |
 | Tezos | tezos | `tezos:NetXdQprcVkpaWU` | 正式 |
-| Cardano | cardano | `cip34:1-764824073` | **待核對**（network-magic 待 hitripod 確認） |
-| Tron | tron | `tron:mainnet` | 正式 |
+| Cardano | cardano | `cardano:mainnet` | 協議約定 |
+| Tron | tron | `tron:mainnet` | 協議約定 |
 
 ## 支援的資產類型 [v2.2：改採 CAIP-19]
 
@@ -322,6 +326,8 @@ confirm_beneficiary:
 </Note>
 
 **原生幣（CAIP-19 `slip44`）**
+
+以下 TRX、ADA、SOL 範例使用 [CAIP-20](https://standards.chainagnostic.org/CAIPs/caip-20) 的原生幣表示法；Cardano 與 Tron 的鏈 ID 採本協議約定值。
 
 | symbol | 鏈 | `asset_id`（CAIP-19） |
 |------|------|------|
@@ -336,9 +342,9 @@ confirm_beneficiary:
 | DOT | Polkadot | `polkadot:91b171bb158e2d3848fa23a9f1c25182/slip44:354` |
 | XLM | Stellar | `stellar:pubnet/slip44:148` |
 | XTZ | Tezos | `tezos:NetXdQprcVkpaWU/slip44:1729` |
-| ADA | Cardano | `cip34:1-764824073/slip44:1815`（鏈 ID 待核對） |
-| SOL | Solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501`（Solana namespace 未定義原生幣表示法，待核對） |
-| TRX | Tron | `tron:mainnet/token:trx` |
+| ADA | Cardano | `cardano:mainnet/slip44:1815` |
+| SOL | Solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501` |
+| TRX | Tron | `tron:mainnet/slip44:195` |
 
 **代幣（CAIP-19 `erc20`，Ethereum mainnet 範例）**
 
@@ -353,7 +359,7 @@ confirm_beneficiary:
 | PAXG | `eip155:1/erc20:0x45804880de22913dafe09f4980848ece6ecbaf78` |
 | MAX | `eip155:1/erc20:0xe7976c4efc60d9f4c200cc1bcef1a1e3b02c73e7` |
 
-**TRON 資產表示法**：TRX 與 TRC-10 token 使用 `tron:mainnet/token:<Asset_ID_or_Ticker>`；TRC-20 token 使用 `tron:mainnet/erc20:<Smart_Contract_Address>`。
+**TRON 資產表示法**：TRX 使用 `tron:mainnet/slip44:195`；TRC-10 token 使用 `tron:mainnet/token:<Asset_ID_or_Ticker>`；TRC-20 token 使用 `tron:mainnet/erc20:<Smart_Contract_Address>`。
 
 **多鏈穩定幣範例**
 
@@ -361,7 +367,7 @@ confirm_beneficiary:
 |------|------|------|
 | USDC | Polygon（native） | `eip155:137/erc20:0x3c499c542cef5e3811e1192ce70d8cc03d5c3359` |
 | USDC | Solana | `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` |
-| USDT | Tron（TRC-20） | `tron:mainnet/erc20:TR7NHqjeKQxGTCi8qWoZY4pL6MuXjN6eiZ` |
+| USDT | Tron（TRC-20） | `tron:mainnet/erc20:TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t` |
 
 ## 需要 Memo/Tag 的網路 [v2.0 新增]
 

@@ -12,7 +12,7 @@ This specification defines the inter-VASP communication protocol for exchanging 
 - **Encrypted PII Exchange** — RSA-OAEP / ECIES encryption of personal information with key rotation support
 - **Anti-Replay Protection** — Nonce-based mechanism to prevent replay attacks
 - **Memo/Tag Support** — Native support for chains requiring Memo or Destination Tag (XRP, Stellar, Cosmos, EOS)
-- **Mutual Authentication** — HMAC-SHA256 request signing with optional mTLS
+- **Mutual Authentication** — HMAC-SHA256 request signing
 
 ### API Endpoints
 
@@ -28,13 +28,13 @@ This specification defines the inter-VASP communication protocol for exchanging 
 
 ### Supported Networks
 
-Bitcoin, Ethereum, Tron, BNB Smart Chain, Polygon, Arbitrum, Optimism, Solana, XRP Ledger, Stellar, Cosmos Hub, EOS
+See the [supported blockchain networks](./spec/data-models.mdx).
 
 ## Specification
 
-The complete API specification is available in [`api-spec.md`](./api-spec.md).
+The complete API specification is available in [`src/api-spec.md`](./src/api-spec.md).
 
-**Current version**: 2.0 (2025-02-11)
+**Current version**: 2.2.1 (2026-07-29); asset ID alignment is proposed for 2.3.
 
 ## Documentation Site
 
@@ -60,7 +60,7 @@ This is an open specification. All Taiwan-based VASPs and industry participants 
 
 ### Versioning
 
-This specification follows semantic versioning. All changes are documented in the changelog section of [`api-spec.md`](./api-spec.md#變更紀錄).
+This specification follows semantic versioning. All changes are documented in the [changelog](./spec/changelog.mdx).
 
 ## References
 
