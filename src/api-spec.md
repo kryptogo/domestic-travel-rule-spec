@@ -35,7 +35,7 @@
 | 2.1.1 | 2026-04-10 | RSA+AES 加密機制（`private_info`）、`/transfers/{id}/confirm` 受益人資訊改為條件必填、錯誤回應識別碼欄位釐清、**移除 `company_registration`**（breaking，由 `business_registration` 取代） |
 | 2.2 | 2026-05-11 | 第四次技術會議：vasp_id 命名規則、地址暫存與例外情境、transfer_id 格式、expires_at 生命週期、廣播失敗同步、vout 欄位、資料回補端點、shared_secret 共享機制；會後 Slack 收斂：broadcast-first 接收方規則、`amount_twd`、GET/PATCH 欄位釐清、CAIP-2/CAIP-19 欄位統一（`network` 過渡期保留） |
 | 2.2.1 | 2026-07-29 | 法規對齊修訂（凍結後 hotfix）：轉出人完整地址 `address_line`、`identification` 收斂為僅法人、`date_of_birth` 限定轉出人自然人、新增必填欄位總表、門檻「逾／以上」用語釐清 |
-| 2.3（提案） | 2026-09-30 | 資產識別碼對齊：TRX 改用 `slip44:195`、ADA 採 `cardano:mainnet`、SOL 原生幣範例定案、修正 TRON USDT 合約地址；`network` 過渡期別名本次不移除 |
+| 2.2.2（提案） | 2026-09-30 | Asset ID 對齊：TRX 改用 `slip44:195`、ADA 採 `cardano:mainnet`、SOL 原生幣範例定案、修正 TRON USDT 合約地址；`network` 過渡期別名本次不移除 |
 
 > **規格凍結公告**：v2.2 已於 **2026-06-28 凍結**、**2026-06-29 起進入各家點對點測試**。凍結後僅接受 errata（錯字／文義澄清），新欄位納入下一版。
 >
@@ -1129,7 +1129,7 @@ private_info = {
 
 ### 4.4 支援的區塊鏈網路 **[v2.2：改採 CAIP-2]**
 
-> **[v2.2 變更] 鏈識別改採 CAIP-2 標準（PR #7 Code Review 提議）**：鏈以 CAIP-2 `chain_id`（`namespace:reference`）為正規識別碼，填入 API payload 的 `chain_id`。短名 `network` 過渡期保留為別名，移除時程另案確認。本表是協議互通值；尚無定稿 CAIP profile 的網路不得自行換用其他提案值。**v2.3 提案**：Cardano 鏈 ID 及下列 TRX、ADA 資產 ID 的調整，須待對接 VASP 確認切換時點後生效；v2.2.1 既有 wire 值不可單方替換。
+> **[v2.2 變更] 鏈識別改採 CAIP-2 標準（PR #7 Code Review 提議）**：鏈以 CAIP-2 `chain_id`（`namespace:reference`）為正規識別碼，填入 API payload 的 `chain_id`。短名 `network` 過渡期保留為別名，移除時程另案確認。本表列出本協議採用的 Chain ID；尚無定稿 CAIP profile 的網路不得自行換用其他提案值。**v2.2.2 提案**：Cardano Chain ID 及下列 TRX、ADA Asset ID 已確認。啟用日期須由對接 VASP 共同確認；啟用前不可單方替換 v2.2.1 的 ID。
 
 | 通用名稱 | `network` 短名（過渡期別名） | `chain_id`（CAIP-2，正規） | 狀態 |
 |------|------|------|------|
@@ -1534,13 +1534,13 @@ def sign(method, path, body, shared_secret):
 | 2.2 | 2026-05-11 | 第四次技術會議決議：見下方 v2.2 詳細變更列表 | KryptoGO |
 | 2.2 | 2026-06-29 | 第五次技術會議收斂（凍結前最後確認）：移除自然人證件號碼、`date_of_birth` 收緊為完整 `YYYY-MM-DD`、`name` 來源依證件類型、`account_id`/`address` key 恆存空值用 `""`、新增發送方確認逾時鏈上放行條件 | KryptoGO |
 | 2.2.1 | 2026-07-29 | **法規對齊修訂（凍結後 hotfix）**：轉出人完整地址（`address_line`）、`identification` 收斂為僅法人、`date_of_birth` 限定轉出人自然人、新增必填欄位總表、門檻「逾／以上」用語釐清：見下方 v2.2.1 詳細變更列表 | KryptoGO |
-| 2.3（提案） | 2026-09-30 | **資產識別碼對齊**：TRX、ADA 的 wire ID 調整，SOL 原生幣範例確認，TRON USDT 合約地址勘誤；`network` 過渡期別名保留 | KryptoGO |
+| 2.2.2（提案） | 2026-09-30 | **Asset ID 對齊**：TRX、ADA 的 Asset ID 調整，SOL 原生幣範例確認，TRON USDT 合約地址勘誤；`network` 過渡期別名保留 | KryptoGO |
 
-### v2.3 資產識別碼對齊提案（2026-09-30）
+### v2.2.2 Asset ID 對齊提案（2026-09-30）
 
-TRX 與 ADA 的 `asset_id` 變更會影響既有 wire 值，因此不列為 v2.2 凍結後 errata。TRON USDT 舊地址無效，請改用 `tron:mainnet/erc20:TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`。本提案保留 `tron:mainnet`、TRON TRC-20 的 `erc20` namespace、BNB `slip44:714`、Avalanche C-Chain `slip44:9000`，以及 `network` 過渡期別名；短名移除另案處理。
+TRX 與 ADA 的 Asset ID 變更會影響既有對接，並非 v2.2 凍結後的純 errata。本提案依協議修訂另以 patch 版號提出；須由對接 VASP 確認啟用日期後生效。TRON USDT 舊地址無效，請改用 `tron:mainnet/erc20:TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t`。本提案保留 `tron:mainnet`、TRON TRC-20 的 `erc20` namespace、BNB `slip44:714`、Avalanche C-Chain `slip44:9000`，以及 `network` 過渡期別名；短名移除另案處理。
 
-| 資產 | v2.2.1 wire 值 | v2.3 提案 wire 值 |
+| 資產 | v2.2.1 Asset ID | v2.2.2 提案 Asset ID |
 |------|------|------|
 | TRX | `tron:mainnet/token:trx` | `tron:mainnet/slip44:195` |
 | ADA | `cip34:1-764824073/slip44:1815` | `cardano:mainnet/slip44:1815` |
@@ -1651,7 +1651,7 @@ TRX 與 ADA 的 `asset_id` 變更會影響既有 wire 值，因此不列為 v2.2
 | 19 | Slack | 3.3 / 4.3 | 新增 `transaction.amount_twd`（等值新台幣，必填）作為自律規範門檻判斷依據；`amount_usd` 降為純國際參考；大額門檻對照表改以 `amount_twd` 為準 | Bito（幣託 Lido） |
 | 20 | Slack | 3.5 GET /transfers/{id} | 釐清 `originating_vasp` 與 `beneficiary_vasp` 為 Response 必回欄位，補 Response Fields 表 | MaiCoin |
 | 21 | Slack | 3.6 PATCH /transfers/{id} | 釐清前置狀態須為 `accepted`、可更新 `transaction` 欄位僅 `tx_hash`/`block_number`/`vout`、PII 補正改走 `amend` | MaiCoin |
-| 22 | PR #7 + Review | 4.3 / 4.4 / 4.5 資料模型 | 鏈/資產識別**改採 CAIP-2 / CAIP-19 標準**：registry 表改為 CAIP-2 chain_id + CAIP-19 asset_id 對照（取代冗長列舉）；API payload 以 `chain_id`(CAIP-2)、`asset_id`(CAIP-19) 為正規識別；短名 `network` 過渡期保留為別名，CAIP-only 原規劃於 v2.3（`network` 別名移除已改由後續版本處理）；Cardano 當時採 CIP-34 提案值、現於 v2.3 改採協議值；Tron 當時採 `tron:mainnet` 與 `tron:mainnet/token:*`、`tron:mainnet/erc20:*` | PR #7（MaiCoin Pia）+ Code Review（a00012025 提議 CAIP） |
+| 22 | PR #7 + Review | 4.3 / 4.4 / 4.5 資料模型 | 鏈/資產識別**改採 CAIP-2 / CAIP-19 標準**：registry 表改為 CAIP-2 chain_id + CAIP-19 asset_id 對照（取代冗長列舉）；API payload 以 `chain_id`(CAIP-2)、`asset_id`(CAIP-19) 為正規識別；短名 `network` 過渡期保留為別名，CAIP-only 原規劃於 v2.3（`network` 別名移除已改由後續版本處理）；Cardano 當時採 CIP-34 提案值、現於 v2.2.2 提案改採協議值；Tron 當時採 `tron:mainnet` 與 `tron:mainnet/token:*`、`tron:mainnet/erc20:*` | PR #7（MaiCoin Pia）+ Code Review（a00012025 提議 CAIP） |
 | 23 | Slack | 6a 點對點測試計畫（新節） | 新增測試計畫：Phase A（協定互通）/ Phase B（鏈上流程）分階段、前置準備、A0–B3 測試案例、認證簽章 sample（`examples/tr_sign_sample.py`，HMAC 已驗證跨工具一致） | Bonnie、Wegin |
 | 24 | Slack | 3.3 POST /transfer | **移除 `callback_url` 欄位**：受益方回傳結果係直接呼叫發起方 `POST /transfers/{id}/confirm`（鏈上資訊走 `PATCH`），發起方端點以 `X-VASP-ID` 從公會 VASP 清單反查 base URL 取得，故 `callback_url` 為冗餘（有欄位無 payload/觸發定義、流程圖未使用） | Slack 提問 |
 | 25 | errata | 3.1 / 3.3 / 3.4–3.6a | 回應 PR #8 review：統一 canonical endpoints（`/transfer`、`/transfers/{id}/confirm`、`GET`/`PATCH /transfers/{id}`、`/transfers/{id}/amend`）、`GET /vasp/info` 改提供 `base_url` 而非部分端點清單、`transaction.amount_twd` 改為必填、`transfer_id` 範例改為不超過 36 字元的 UUID/ULID | PR #8 Review |

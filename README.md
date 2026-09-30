@@ -34,7 +34,7 @@ See the [supported blockchain networks](./spec/data-models.mdx).
 
 The complete API specification is available in [`src/api-spec.md`](./src/api-spec.md).
 
-**Current version**: 2.2.1 (2026-07-29); asset ID alignment is proposed for 2.3.
+**Current version**: 2.2.1 (2026-07-29); Asset ID alignment is proposed for 2.2.2.
 
 ## Documentation Site
 
